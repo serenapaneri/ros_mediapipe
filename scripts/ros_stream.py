@@ -1,11 +1,11 @@
-#!/usr/bin/env python3.7
+#!/usr/bin/env python3
 
 import rospy
 import mediapipe as mp
 import cv2, cv_bridge
-from sensor_msg.msg import Image
+from sensor_msgs.msg import Image
 from __future__ import print_function
-from cv_bridge import CvBridge
+from cv_bridge import CvBridge, CvBridgeError
 
 
 class Mediapipe:
