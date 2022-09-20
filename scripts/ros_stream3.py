@@ -1,15 +1,23 @@
 #!/usr/bin/env python3
 
+from __future__ import print_function
+
 import rospy
 import mediapipe as mp
 import cv2, cv_bridge
 from sensor_msgs.msg import Image
-from __future__ import print_function
 from cv_bridge import CvBridge, CvBridgeError
 
+cv_image = None
 
 def image_callback(msg):
-    rospy.loginfo('Access to the frontleft camera')
+    global cv_image
+    try:
+        bridge = CvBridge()
+        cv_image = bridge.imgmsg_to_cv2(msg, 'passthrough')
+        rospy.loginfo('Access to the frontleft camera')
+    except CvBridgeError as e:
+        print(e)
 
 
 def main():
@@ -18,12 +26,6 @@ def main():
     # setting mediapipe holistic model
     mp_drawing = mp.solutions.drawing_utils
     mp_holistic = mp.solutions.holistic
-
-    try:
-        bridge = CvBridge()
-        cv_image = bridge.imgmsg_to_cv2(msg, 'passthrough')
-    except CvBridgeError, e:
-        print e
 
     image_sub = rospy.Subscriber('camera/frontleft/camera/image', Image, image_callback)    
     
