@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #!coding=utf-8
 
 """
@@ -33,9 +33,9 @@ import sys
 from sensor_msgs.msg import Image
 from sensor_msgs.msg import CameraInfo
 from cv_bridge import CvBridge, CvBridgeError
-from cv_bridge.boost.cv_bridge_boost import getCvType
+# from cv_bridge.boost.cv_bridge_boost import getCvType
 from sensor_msgs.msg import PointCloud2
-from sensor_msgs.msg import PointFiled
+from sensor_msgs.msg import PointField
 from std_msgs.msg import Header
 from visualization_msgs.msg import Marker, MarkerArray
 from geometry_msgs.msg import Point
@@ -59,8 +59,8 @@ class Mediapipe:
 
         # message_filter allows to chain messages together, in this case subscription
         #subscribers to the camera and depth topic
-        self.camera_sub = mf.Subscriber("camera/frontleft/camera/image", Image)
-        self.depth_sub = mf.Subscriber("depth/frontleft/camera/image", Image)
+        self.camera_sub = mf.Subscriber("/spot/camera/frontleft/camera/image", Image)
+        self.depth_sub = mf.Subscriber("/spot/depth/frontleft/camera/image", Image)
 
         # message_filter syncronizes messages and associate a callback 
         syn = mf.ApproximateTimeSynchronizer([self.camera_sub, self.depth_sub], queue_size = 10, slop = 0.1)
@@ -102,9 +102,7 @@ class Mediapipe:
 
 
     def create_line_list(self, depth_arr, rpts):
-    """
-      It creates lines markers between two points. They represent the links of the skeleton
-    """
+      #It creates lines markers between two points. They represent the links of the skeleton
         try:
             # storing on the list the corresponding mediapipe connections between markers
             # it does not include all the markers and the connections but only the ones of the scheleton
@@ -163,9 +161,8 @@ class Mediapipe:
 
 
     def create_spheres(self,depth_arr,rpts):
-    """ 
-      It creates sphere markers that are positioned in the joints of the body
-    """
+      # It creates sphere markers that are positioned in the joints of the body
+
         try:
             #points=[nose,left_wrist,right,wrist,left_ankle,right ankle]
             points=[rpts[0],rpts[15],rpts[16],rpts[27],rpts[28]]

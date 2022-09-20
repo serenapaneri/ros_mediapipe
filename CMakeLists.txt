@@ -166,6 +166,7 @@ include_directories(
  catkin_install_python(PROGRAMS
    scripts/ros_stream3.py
    scripts/ros_stream5.py
+   scripts/frames_config.py
    DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
  )
 
