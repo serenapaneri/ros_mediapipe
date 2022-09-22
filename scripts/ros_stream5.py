@@ -61,9 +61,13 @@ class Mediapipe:
         #subscribers to the camera and depth topic
         self.camera_sub = mf.Subscriber("/spot/camera/frontleft/camera/image", Image)
         self.depth_sub = mf.Subscriber("/spot/depth/frontleft/camera/image", Image)
+<<<<<<< HEAD
+        self.depth_info_sub = mf.Subscriber("/spot/depth/frontleft/camera_info", CameraInfo)
+=======
+>>>>>>> 7780572904c28e40be5903ea8f73bcbd748452aa
 
         # message_filter syncronizes messages and associate a callback 
-        syn = mf.ApproximateTimeSynchronizer([self.camera_sub, self.depth_sub], queue_size = 10, slop = 0.1)
+        syn = mf.ApproximateTimeSynchronizer([self.camera_sub, self.depth_sub, self.depth_info_sub], queue_size = 10, slop = 0.1)
         syn.registerCallback(self.image_callback)
 
         # publisher that allows to draw markers and we use a MarkerArray 
@@ -82,7 +86,7 @@ class Mediapipe:
         pts = []
         # converting from BGR format into RGB one cause is the one feasible with mediapipe
         rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        # setting the output of the holistic model reling on the RGB image
+        # all detections are stored inside this variable results
         results = self.holistic.process(rgb_image)
         # connecting the face landmarks
         self.mp_drawing.draw_landmarks(image, results.face_landmarks, self.mp_holistic.FACE_CONNECTIONS)
@@ -161,8 +165,14 @@ class Mediapipe:
 
 
     def create_spheres(self,depth_arr,rpts):
+<<<<<<< HEAD
+    """
+      It creates sphere markers that are positioned in the joints of the body
+    """
+=======
       # It creates sphere markers that are positioned in the joints of the body
 
+>>>>>>> 7780572904c28e40be5903ea8f73bcbd748452aa
         try:
             #points=[nose,left_wrist,right,wrist,left_ankle,right ankle]
             points=[rpts[0],rpts[15],rpts[16],rpts[27],rpts[28]]
@@ -173,7 +183,7 @@ class Mediapipe:
             self.spheres.id = 0
             self.spheres.action = Marker.ADD
                 
-                    #points
+            # points
             self.spheres.type = Marker.SPHERE_LIST
             self.spheres.pose.orientation.w = 1.0
             self.spheres.color.r = 1.0
@@ -204,9 +214,13 @@ class Mediapipe:
           depth_val is the value taken from the depth image that is used for z coordinate 
         """
 
+        # focal length x axis
         fx = self.cam_intrin[0]
+        # focal length y axis
         fy = self.cam_intrin[4]
+        # optical centre x axis
         cx = self.cam_intrin[2]
+        # optical centre y axis
         cy = self.cam_intrin[5]
 
         # converting into x, y and z 
@@ -219,6 +233,9 @@ class Mediapipe:
 
             
     def image_callback(self,rgb_data,depth_data,camera_data):
+    """
+      Callback function of the subscribers to the camera topic
+    """
         try:
             # converting a sensor_msgs into an opencv image for both rgb and depth data
             img = self.bridge.imgmsg_to_cv2(rgb_data,"bgr8")
@@ -227,7 +244,6 @@ class Mediapipe:
             print(d_img.shape,img.shape)
             # using holistic_sd function that sets the mediapipe environment
             rpts,rimg = self.holistic_2d(img)
-            # numpy.arry
             depth_arr = np.array(d_img)
             self.cam_intrin = list(camera_data.K)
             self.create_line_list(depth_arr,rpts)
@@ -238,9 +254,11 @@ class Mediapipe:
             
         except CvBridgeError as e:
             print(e)
-           
-        cv2.imshow('image',rimg)
-        cv2.waitKey(1)
+        
+        cv2.startWindowThread()
+        cv2.namedWindow('image')   
+        cv2.imshow('image', rimg)
+        cv2.waitKey(0)
 
 
 def main(args):
