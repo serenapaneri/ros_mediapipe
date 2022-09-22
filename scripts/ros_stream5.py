@@ -61,10 +61,7 @@ class Mediapipe:
         #subscribers to the camera and depth topic
         self.camera_sub = mf.Subscriber("/spot/camera/frontleft/camera/image", Image)
         self.depth_sub = mf.Subscriber("/spot/depth/frontleft/camera/image", Image)
-<<<<<<< HEAD
         self.depth_info_sub = mf.Subscriber("/spot/depth/frontleft/camera_info", CameraInfo)
-=======
->>>>>>> 7780572904c28e40be5903ea8f73bcbd748452aa
 
         # message_filter syncronizes messages and associate a callback 
         syn = mf.ApproximateTimeSynchronizer([self.camera_sub, self.depth_sub, self.depth_info_sub], queue_size = 10, slop = 0.1)
@@ -165,14 +162,9 @@ class Mediapipe:
 
 
     def create_spheres(self,depth_arr,rpts):
-<<<<<<< HEAD
     """
       It creates sphere markers that are positioned in the joints of the body
     """
-=======
-      # It creates sphere markers that are positioned in the joints of the body
-
->>>>>>> 7780572904c28e40be5903ea8f73bcbd748452aa
         try:
             #points=[nose,left_wrist,right,wrist,left_ankle,right ankle]
             points=[rpts[0],rpts[15],rpts[16],rpts[27],rpts[28]]
