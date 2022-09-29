@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-#!coding=utf-8
+#!/usr/bin/env python3.7
 
 """
 It takes in estimated 2d anatomical landmarks in image coordinate(u,v) and convert them to world coordinate(x,y,z).
@@ -30,15 +29,16 @@ import time
 import os
 import sys
 
+from cv_bridge import CvBridge, CvBridgeError
 from sensor_msgs.msg import Image
 from sensor_msgs.msg import CameraInfo
-from cv_bridge import CvBridge, CvBridgeError
-# from cv_bridge.boost.cv_bridge_boost import getCvType
+from cv_bridge.boost.cv_bridge_boost import getCvType
 from sensor_msgs.msg import PointCloud2
 from sensor_msgs.msg import PointField
 from std_msgs.msg import Header
 from visualization_msgs.msg import Marker, MarkerArray
 from geometry_msgs.msg import Point
+
 
 
 class Mediapipe:
@@ -59,12 +59,9 @@ class Mediapipe:
 
         # message_filter allows to chain messages together, in this case subscription
         #subscribers to the camera and depth topic
-        self.camera_sub = mf.Subscriber("/spot/camera/frontleft/camera/image", Image)
-        self.depth_sub = mf.Subscriber("/spot/depth/frontleft/camera/image", Image)
-<<<<<<< HEAD
+        self.camera_sub = mf.Subscriber("/spot/camera/frontleft/image", Image)
+        self.depth_sub = mf.Subscriber("/spot/depth/frontleft/image", Image)
         self.depth_info_sub = mf.Subscriber("/spot/depth/frontleft/camera_info", CameraInfo)
-=======
->>>>>>> 7780572904c28e40be5903ea8f73bcbd748452aa
 
         # message_filter syncronizes messages and associate a callback 
         syn = mf.ApproximateTimeSynchronizer([self.camera_sub, self.depth_sub, self.depth_info_sub], queue_size = 10, slop = 0.1)
@@ -165,14 +162,7 @@ class Mediapipe:
 
 
     def create_spheres(self,depth_arr,rpts):
-<<<<<<< HEAD
-    """
-      It creates sphere markers that are positioned in the joints of the body
-    """
-=======
-      # It creates sphere markers that are positioned in the joints of the body
-
->>>>>>> 7780572904c28e40be5903ea8f73bcbd748452aa
+     # It creates sphere markers that are positioned in the joints of the body
         try:
             #points=[nose,left_wrist,right,wrist,left_ankle,right ankle]
             points=[rpts[0],rpts[15],rpts[16],rpts[27],rpts[28]]
@@ -233,9 +223,7 @@ class Mediapipe:
 
             
     def image_callback(self,rgb_data,depth_data,camera_data):
-    """
-      Callback function of the subscribers to the camera topic
-    """
+      # Callback function of the subscribers to the camera topic
         try:
             # converting a sensor_msgs into an opencv image for both rgb and depth data
             img = self.bridge.imgmsg_to_cv2(rgb_data,"bgr8")
