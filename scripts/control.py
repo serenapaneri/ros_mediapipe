@@ -30,4 +30,57 @@
                - if the person is seen from the back same as before.  
 """
 
+detection = None
+full_detection = None
+status = None
+
+def detection():
+    # make a detection
+    if len(results.pose_landmarks) > threshold :
+       detection == True
+       print("A person has been found")
+    else:
+        detection == False
+        print("Serching for people to rescue")
+    return detection
+
+def compute_position():
+    # evaluate the postion
+    while detection == True:
+    # stand up
+    if results.pose_world_landmarks.landmark[0].y > (1.50 m):
+        status == 'stand up'
+    if results.pose_world_landmarks.landmark[0].y < (1.50 m) and results.pose_world_landmarks.landmark[0].y > (0.30 m):
+        status == 'sit down'
+    if results.pose_world_landmarks.landmark[0].y < (0.30 m):
+        status == 'lay down'
+    return status
+
+def full_detection():
+    nose_vis = results.pose_landmarks.landmark[0].visibility
+    left_foot_vis = results.pose_landmarks.landmark[31].visibility
+    right_foot_vis = results.pose_landmarks.landmark[32].visibility
+
+    if detection == True and nose_vis > 0.9 and (left_foot_vis > 0.9 or right_foot_vis > 0.9):
+        full_detection = True
+        print('The person has been framed')
+    else:
+        full_detection = False
+        print('Adjusting the robot')
+
+
+def movement():
+    if status == 'lay down' :
+
+    if status == 'sit down' :
+
+    if status == 'stand up' :
+    
+
+def main():
+    rospy.init_node('control', anonymous = True)
+ 
+     
+        
+
 
