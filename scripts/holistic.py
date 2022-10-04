@@ -97,6 +97,8 @@ class Mediapipe:
             print(right_distance)
         else:
             print('Searching for people to rescue')
+
+       if distance > 1.30 m 
         
          
 
