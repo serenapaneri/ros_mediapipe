@@ -8,6 +8,7 @@ import mediapipe as mp
 import cv_bridge
 import time
 import os
+import math
 import sys
 
 sys.path.remove('/opt/ros/melodic/lib/python2.7/dist-packages')
@@ -46,6 +47,11 @@ class Mediapipe:
             rgb_image = cv2.cvtColor(data, cv2.COLOR_RGB2BGR)
 
             # face mask model 
+
+            # self.mp_drawing.draw_landmarks(rgb_image, results.face_landmarks, self.mp_holistic.FACEMESH_IRISES, 
+            #                                landmark_drawing_spec=None, connection_drawing_spec=mp_drawing_styles
+            #                                .get_default_face_mesh_iris_connections_style())
+
             self.mp_drawing.draw_landmarks(rgb_image, results.face_landmarks, self.mp_holistic.FACE_CONNECTIONS,
                                      mp_drawing.DrawingSpec(color=(80,110,10), thickness=1, circle_radius=1),
                                      mp_drawing.DrawingSpec(color=(80,256,121), thickness=1, circle_radius=1)
@@ -56,6 +62,43 @@ class Mediapipe:
                                      mp_drawing.DrawingSpec(color=(245,117,66), thickness=2, circle_radius=4),
                                      mp_drawing.DrawingSpec(color=(245,66,230), thickness=2, circle_radius=2)
                                      )
+
+    def detection(self):
+        """
+          The detection can be performed in two different ways: 
+          - len(results) > threshold
+          - the visibility of both nose and foot is greater than a threshold 
+        """
+        detection = None
+        nose_vis = results.pose_landmarks.landmark[0].visibility
+        left_foot_vis = results.pose_landmarks.landmark[31].visibility
+        right_foot_vis = results.pose_landmarks.landmark[32].visibility
+
+        if nose_vis > 0.7 and (left_foot_vis > 0.7 or right_foot_vis > 0.7):
+            detection = True
+            print('A person has been found')
+        else:
+            detection = False
+
+
+    def compute_distance(self):
+        """
+          This function computes the distance between the nose and the foot in order to
+          then compute the distance between the person and the robot.
+        """
+        nose = results.pose_landmarks.landmark[0]
+        left_foot = results.pose_landmarks.landmark[31]
+        right_foot = results.pose_landmarks.landmark[32]
+
+        if detection == True:
+            left_distance = math.dist(nose, left_foot)
+            right_distance = math.dist(nose, right_foot)
+            print(left_distance)
+            print(right_distance)
+        else:
+            print('Searching for people to rescue')
+        
+         
 
 
     def camera_callback(self, data):
@@ -72,6 +115,7 @@ class Mediapipe:
         mph = self.holistic_2d(rot_image)
         cv2.imshow("mediapipe_image", mph)
         cv2.waitKey(3)
+        detection()
 
 
     def depth_callback(self, data):
