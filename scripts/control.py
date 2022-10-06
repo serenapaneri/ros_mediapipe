@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
 
+from __future__ import print_function
+
+import rospy
+import math
+import mediapipe as mp
+
+from geometry_msgs.msg import Twist
+
 """
   This node should arrange the motion of the robot once a person is detected. Of course
   there are several ways in which the robot can approach the person.
@@ -33,9 +41,22 @@
 detection = None
 full_detection = None
 status = None
+pub = None
+
+
+def depth_callback(data):
+    """
+      Callback function of the depth camera
+    """
+    try:
+        depth_image = self.bridge.imgmsg_to_cv2(data, 'passthrough')
+    except CvBridgeError as e:
+        print(e)
+
 
 def detection():
     # make a detection
+    global detection
     if len(results.pose_landmarks) > threshold :
        detection == True
        print("A person has been found")
@@ -44,19 +65,30 @@ def detection():
         print("Serching for people to rescue")
     return detection
 
+
 def compute_position():
     # evaluate the postion
+    global detection, status
     while detection == True:
-    # stand up
-    if results.pose_world_landmarks.landmark[0].y > (1.50 m):
-        status == 'stand up'
-    if results.pose_world_landmarks.landmark[0].y < (1.50 m) and results.pose_world_landmarks.landmark[0].y > (0.30 m):
-        status == 'sit down'
-    if results.pose_world_landmarks.landmark[0].y < (0.30 m):
-        status == 'lay down'
+        # stand up
+        if results.pose_world_landmarks.landmark[0].y > (1.50 m):
+            status == 'stand up'
+        # sit down
+        if results.pose_world_landmarks.landmark[0].y < (1.50 m) and results.pose_world_landmarks.landmark[0].y > (0.30 m):
+            status == 'sit down'
+        # lay down
+        if results.pose_world_landmarks.landmark[0].y < (0.30 m):
+            status == 'lay down'
     return status
 
-def full_detection():
+
+def f_detection():
+    """
+         The detection can be performed in two different ways: 
+        - len(results) > threshold
+        - the visibility of both nose and foot is greater than a threshold 
+     """
+    global detection, full_detection
     nose_vis = results.pose_landmarks.landmark[0].visibility
     left_foot_vis = results.pose_landmarks.landmark[31].visibility
     right_foot_vis = results.pose_landmarks.landmark[32].visibility
@@ -67,6 +99,29 @@ def full_detection():
     else:
         full_detection = False
         print('Adjusting the robot')
+    return full_detection
+
+
+
+def compute_distance():
+        """
+          This function computes the distance between the nose and the foot in order to
+          then compute the distance between the person and the robot.
+        """
+        global full_detection
+        nose = results.pose_landmarks.landmark[0]
+        left_foot = results.pose_landmarks.landmark[31]
+        right_foot = results.pose_landmarks.landmark[32]
+
+        while full_detection == True:
+            left_distance = math.dist(nose, left_foot)
+            right_distance = math.dist(nose, right_foot)
+            print(left_distance)
+            print(right_distance)
+
+
+def keep_distance():
+
 
 
 def movement():
@@ -78,9 +133,12 @@ def movement():
     
 
 def main():
+    global pub
     rospy.init_node('control', anonymous = True)
- 
-     
-        
+    pub = rospy.publisher('/cmd_vel', Twist, queue_size = 1)
+    depth_sub = rospy.Subscriber("/spot/depth/frontleft/image", Image, self.depth_callback)
+    rospy.spin()
 
 
+if __name__ == '__main__':
+    main()
