@@ -168,10 +168,11 @@ include_directories(
 ## Mark executable scripts (Python etc.) for installation
 ## in contrast to setup.py, you can choose the destination
  catkin_install_python(PROGRAMS
-   scripts/ros_stream3.py
-   scripts/ros_stream5.py
    scripts/frames_config.py
    scripts/holistic.py
+   scripts/pose.py
+   scripts/iris.py
+   scripts/control.py
    DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
  )
 

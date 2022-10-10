@@ -27,7 +27,7 @@ threshold = 0.5 # change this parameter with trial and error
 stop = 200 # change this looking on the x of the graphs
 time = np.arrange(0,stop,1) # it should give an x axis long stop and with the step at every sencond
 
-class mediapipe:
+class mediapose:
 
     def __init__(self):
         # setting the cv_bridge
@@ -35,10 +35,10 @@ class mediapipe:
 
         # setting mediapipe pose model
         self.mp_drawing = mp.solutions.drawing_utils
-        self.mp_holistic = mp.solutions.holistic
+        self.mp_pose = mp.solutions.pose
 
         # subscribers to the camera topic
-        self.camera_sub = rospy.Subscriber("/spot/camera/frontleft/image", Image, self.camera_callback)
+        self.camera_sub = rospy.Subscriber("/spot/camera/frontright/image", Image, self.camera_callback)
 
 
     def calculate_angle(self, a, b, c):
@@ -97,16 +97,16 @@ class mediapipe:
         plot12.set_data(time, r_ankle_old)
         return plots_low,
 
-    def holistic_2d(self, data):
+    def pose_2d(self, data):
         global mpipe, landmarks
         # initiate pose model 
-        with self.mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
+        with self.mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:
             # in order to work with mediapipe we need the format RGB
             rgb_image = cv2.cvtColor(data, cv2.COLOR_BGR2RGB)
             rgb_image.flags.writeable = False
 
             # make detections
-            results = holistic.process(rgb_image)
+            results = pose.process(rgb_image)
             if result.pose_landmarks:
                 mpipe = True
             else:
@@ -115,16 +115,6 @@ class mediapipe:
             # in order to work with opencv we need the BGR format
             rgb_image.flags.writeable = True
             rgb_image = cv2.cvtColor(data, cv2.COLOR_RGB2BGR)
-
-            # face mask model 
-            # self.mp_drawing.draw_landmarks(rgb_image, results.face_landmarks, self.mp_holistic.FACEMESH_IRISES, 
-            #                                landmark_drawing_spec=None, connection_drawing_spec=mp_drawing_styles
-            #                                .get_default_face_mesh_iris_connections_style())
-
-            self.mp_drawing.draw_landmarks(rgb_image, results.face_landmarks, self.mp_holistic.FACE_CONNECTIONS,
-                                     mp_drawing.DrawingSpec(color=(80,110,10), thickness=1, circle_radius=1),
-                                     mp_drawing.DrawingSpec(color=(80,256,121), thickness=1, circle_radius=1)
-                                     )
 
             # body pose model
             self.mp_drawing.draw_landmarks(rgb_image, results.pose_landmarks, self.mp_pose.POSE_CONNECTIONS,
@@ -309,7 +299,7 @@ class mediapipe:
             fig_low.show()
 
             # plot the skeleton
-            self.mp_drawing.plot_landmarks(results.pose_world_landmarks, mp_holistic.POSE_CONNECTIONS)
+            self.mp_drawing.plot_landmarks(results.pose_world_landmarks, mp_pose.POSE_CONNECTIONS)
 
 
 
@@ -324,14 +314,14 @@ class mediapipe:
         except CvBridgeError as e:
             print(e)
         
-        mph = self.holistic_2d(rot_image)
+        mph = self.pose_2d(rot_image)
         cv2.imshow("mediapipe_image", mph)
         cv2.waitKey(3)
 
         
 def main(args):
-    medpipe = mediapipe()
-    rospy.init_node("holistic", anonymous = True)
+    medpose = mediapose()
+    rospy.init_node("pose", anonymous = True)
     try:
         rospy.spin()
     except KeyboardInterrupt:
