@@ -13,6 +13,7 @@ import os
 import math
 import sys
 
+# needed to use cv_bridge with python 3
 sys.path.remove('/opt/ros/melodic/lib/python2.7/dist-packages')
 sys.path.append('/home/spot/cv_bridge_ws/install/lib/python3/dist-packages') # controlla sia giusto
 
@@ -20,6 +21,7 @@ from cv_bridge import CvBridge, CvBridgeError
 from sensor_msgs.msg import Image
 from matplotlib.animation import FuncAnimation
 
+# global varables
 mpipe = None
 landmarks = None
 movement = None
@@ -30,6 +32,9 @@ time = np.arrange(0,stop,1) # it should give an x axis long stop and with the st
 class mediapipe:
 
     def __init__(self):
+        """
+          Init function of the class
+        """
         # setting the cv_bridge
         self.bridge = CvBridge()
 
@@ -58,44 +63,6 @@ class mediapipe:
             angle = 360 - angle
         return angle
 
-
-    def plot_init_up():
-        plot1.set_data([], [])
-        plot2.set_data([], [])
-        plot3.set_data([], [])
-        plot4.set_data([], [])
-        plot5.set_data([], [])
-        plot6.set_data([], [])
-        return plots_up,
-
-    def plot_animate_up():
-        global time
-        plot1.set_data(time, l_wrist_old)
-        plot2.set_data(time, r_wrist_old)
-        plot3.set_data(time, l_elbow_old)
-        plot4.set_data(time, r_elbow_old)
-        plot5.set_data(time, l_shoulder_old)
-        plot6.set_data(time, r_shoulder_old)
-        return plots_up,
-
-    def plot_init_low():
-        plot7.set_data([], [])
-        plot8.set_data([], [])
-        plot9.set_data([], [])
-        plot10.set_data([], [])
-        plot11.set_data([], [])
-        plot12.set_data([], [])
-        return plots_low,
-
-    def plot_animate_low():
-        global time
-        plot7.set_data(time, l_hip_old)
-        plot8.set_data(time, r_hip_old)
-        plot9.set_data(time, l_knee_old)
-        plot10.set_data(time, r_knee_old)
-        plot11.set_data(time, l_ankle_old)
-        plot12.set_data(time, r_ankle_old)
-        return plots_low,
 
     def holistic_2d(self, data):
         global mpipe, landmarks
@@ -163,8 +130,9 @@ class mediapipe:
             right_foot_index = [landmarks[mp_pose.PoseLandmark.RIGHT_FOOT_INDEX.value].x, landmarks[mp_pose.PoseLandmark.RIGHT_FOOT_INDEX.value].y]
 
             while mpipe = True:
-                # calculate angles
                 start_time = time.time()
+
+                # calculate angles
                 l_wrist_old = calculate_angle(left_pinky, left_wrist, left_elbow)
                 r_wrist_old = calculate_angle(right_pinky, right_wrist, right_elbow)
                 l_elbow_old = calculate_angle(left_wrist, left_elbow, left_shoulder)
@@ -270,10 +238,6 @@ class mediapipe:
             plots_up = [plot1, plot2, plot3, plot4, plot5, plot6]
 
 
-            anim1 = FuncAnimation(fig_up, plot_animate_up, init_func=plot_init_up)
-            fig_up.show()
-
-
             # lower body
             fig_low = plt.figure(2)
             fig_up.suptitle("Lower body: left vs right", fontsize = 16)
@@ -305,12 +269,47 @@ class mediapipe:
 
             plots_low = [plot7, plot8, plot9, plot10, plot11, plot12]
 
-            anim2 = FuncAnimation(fig_low, plot_animate_low, init_func=plot_init_low)
-            fig_low.show()
-
             # plot the skeleton
             self.mp_drawing.plot_landmarks(results.pose_world_landmarks, mp_holistic.POSE_CONNECTIONS)
 
+
+    def plot_init_up():
+        plot1.set_data([], [])
+        plot2.set_data([], [])
+        plot3.set_data([], [])
+        plot4.set_data([], [])
+        plot5.set_data([], [])
+        plot6.set_data([], [])
+        return plots_up,
+
+    def plot_animate_up():
+        global time
+        plot1.set_data(time, l_wrist_old)
+        plot2.set_data(time, r_wrist_old)
+        plot3.set_data(time, l_elbow_old)
+        plot4.set_data(time, r_elbow_old)
+        plot5.set_data(time, l_shoulder_old)
+        plot6.set_data(time, r_shoulder_old)
+        return plots_up,
+
+    def plot_init_low():
+        plot7.set_data([], [])
+        plot8.set_data([], [])
+        plot9.set_data([], [])
+        plot10.set_data([], [])
+        plot11.set_data([], [])
+        plot12.set_data([], [])
+        return plots_low,
+
+    def plot_animate_low():
+        global time
+        plot7.set_data(time, l_hip_old)
+        plot8.set_data(time, r_hip_old)
+        plot9.set_data(time, l_knee_old)
+        plot10.set_data(time, r_knee_old)
+        plot11.set_data(time, l_ankle_old)
+        plot12.set_data(time, r_ankle_old)
+        return plots_low,
 
 
     def camera_callback(self, data):
@@ -332,6 +331,13 @@ class mediapipe:
 def main(args):
     medpipe = mediapipe()
     rospy.init_node("holistic", anonymous = True)
+
+    # plot the real time graphs of the possible movements
+    anim1 = FuncAnimation(fig_up, plot_animate_up, init_func=plot_init_up)
+    fig_up.show()
+    anim2 = FuncAnimation(fig_low, plot_animate_low, init_func=plot_init_low)
+    fig_low.show()
+
     try:
         rospy.spin()
     except KeyboardInterrupt:
