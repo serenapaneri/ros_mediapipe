@@ -173,6 +173,7 @@ include_directories(
    scripts/pose.py
    scripts/iris.py
    scripts/control.py
+   scripts/prova.py
    DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
  )
 

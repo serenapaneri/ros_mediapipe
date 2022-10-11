@@ -319,7 +319,7 @@ class mediapipe:
         try:
             cv_image = self.bridge.imgmsg_to_cv2(data, 'bgr8')
             # rotate the image of 90°
-            rot_image = cv2.rotate(cv_image, cv2.cv2.ROTATE_90_CLOCKWISE)
+            rot_image = cv2.rotate(cv_image, cv2.ROTATE_90_CLOCKWISE)
         except CvBridgeError as e:
             print(e)
         
