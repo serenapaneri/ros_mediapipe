@@ -174,6 +174,9 @@ include_directories(
    scripts/iris.py
    scripts/control.py
    scripts/prova.py
+   scripts/prova2.py
+   scripts/prova3.py
+   scripts/prova4.py
    DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
  )
 
