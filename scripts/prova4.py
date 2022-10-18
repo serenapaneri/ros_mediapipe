@@ -15,7 +15,7 @@ import sys
 
 # needed to use cv_bridge with python 3
 sys.path.remove('/opt/ros/melodic/lib/python2.7/dist-packages')
-sys.path.append('/home/spot/cv_bridge_ws/install/lib/python3/dist-packages') # controlla sia giusto
+sys.path.append('/home/spot/cv_bridge_ws/install/lib/python3/dist-packages')
 
 from cv_bridge import CvBridge, CvBridgeError
 from sensor_msgs.msg import Image
