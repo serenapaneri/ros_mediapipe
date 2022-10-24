@@ -21,11 +21,6 @@ from cv_bridge import CvBridge, CvBridgeError
 from sensor_msgs.msg import Image
 from matplotlib.animation import FuncAnimation
 
-# global variables
-mpipe = None
-landmarks = None
-result = None # check this che mmmmmmhh
-
 class mediapipe:
 
     def __init__(self):
@@ -46,8 +41,6 @@ class mediapipe:
         """
         try:
             cv_image = self.bridge.imgmsg_to_cv2(data, 'bgr8')
-            # rotate the image of 90°
-            # rot_image = cv2.rotate(cv_image, cv2.ROTATE_90_CLOCKWISE) # cambia questo
         except CvBridgeError as e:
             print(e)
 
@@ -59,9 +52,6 @@ class mediapipe:
             # make detections
             results = holistic.process(rgb_image)
             if result.pose_landmarks:
-                mpipe = True
-            else:
-                mpipe = False
 
             # in order to work with opencv we need the BGR format
             rgb_image.flags.writeable = True
@@ -85,29 +75,9 @@ class mediapipe:
             cv2.waitKey(3)
 
 
-def calculate_angle(a, b, c):
-    """
-      Function used to compute an angle between 3 joints of interest.
-    """
-    a = np.array(a) # first joint
-    b = np.array(b) # mid joint
-    c = np.array(c) # end joint
-    
-    # calculate the radians between 3 joints and then convert it in angles
-    radians = np.arctan2(c[1]-b[1], c[0]-b[0]) - np.arctan2(a[1]-b[1], a[0]-b[0])
-    angle = np.abs(radians*180.0/np.pi)
-    
-    # the angle should be beween 0 and 180
-    if angle > 180.0:
-        angle = 360 - angle
-    return angle
-
-
 def main(args):
     rospy.init_node("mediapipe_stream", anonymous = True)
     medpipe = mediapipe()
-
-    landmarks = result.pose_landmarks.landmark # check this che mmmmhhhh
 
     try:
         rospy.spin()

@@ -174,6 +174,7 @@ include_directories(
    scripts/iris.py
    scripts/control.py
    scripts/mediapipe_stream.py
+   scripts/prova.py
    DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
  )
 
