@@ -42,7 +42,7 @@ def go_forward(distance):
     twist_msg.linear.x = 0
     pub_cmd.publish(twist_msg)
 
-    change_state(0)
+    # change_state(0)
 
 
 def yaw(angle):
@@ -66,7 +66,7 @@ def yaw(angle):
     twist_msg.angular.z = 0
     pub_cmd.publish(twist_msg)
 
-    change_state(1)
+    # change_state(1)
 
 
 def look_up():
@@ -81,11 +81,11 @@ def look_up():
     pose_msg.orientation.x = 0  
     pose_msg.orientation.y = 1
     pose_msg.orientation.z = 0
-    pose_msg.orientation.w = tilt
+    pose_msg.orientation.w = 1
 
     pub_body.publish(pose_msg)
 
-    change_state(2)
+    # change_state(2)
 
 
 def stop():
@@ -116,10 +116,10 @@ def main():
     change_state(0)
     while True:
         go_forward(2) # in meters
-        yaw(50) # in degree
-        go forward(1)
+        yaw(45) # in degree
+        go forward(3)
         yaw(360)
-        look_up()
+        # look_up()
         stop()
 
     rospy.spin()
