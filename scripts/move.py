@@ -16,6 +16,8 @@ lin_vel = 0.3 # you should set this parameter
 ang_vel = 30 # you should set this parameter
 tilt = 1
 
+## PROVA CMD_VEL E BASTA SENZA NAMESPACE
+
 def change_state(state):
     """
       Function that switch between different states
@@ -30,7 +32,7 @@ def go_forward(distance):
     """
     twist_msg = Twist()
     twist_msg.linear.x = lin_vel
-    twist_msg.anguler.z = 0
+    twist_msg.angular.z = 0
 
     start_time = rospy.Time.now().to_sec()
     current_distance = 0
@@ -41,7 +43,7 @@ def go_forward(distance):
         current_distance = lin_vel*(time - start_time)
     twist_msg.linear.x = 0
     pub_cmd.publish(twist_msg)
-
+    print('The robot is moving forward')
     # change_state(0)
 
 
@@ -50,7 +52,7 @@ def yaw(angle):
       Always cointerclockwise
     """
     ang_vel_rad = ang_vel*(2*math.pi)/360
-    relative_angle = angle*(2*mapth.pi)/360
+    relative_angle = angle*(2*math.pi)/360
 
     twist_msg = Twist()
     twist_msg.linear.x = 0
@@ -65,7 +67,7 @@ def yaw(angle):
         current_angle = ang_vel_rad*(time - start_time)
     twist_msg.angular.z = 0
     pub_cmd.publish(twist_msg)
-
+    print('The robot is rotating')
     # change_state(1)
 
 
@@ -84,7 +86,7 @@ def look_up():
     pose_msg.orientation.w = 1
 
     pub_body.publish(pose_msg)
-
+    print('The robot is looking up')
     # change_state(2)
 
 
@@ -94,8 +96,9 @@ def stop():
     """
     twist_msg = Twist()
     twist_msg.linear.x = 0
-    twist_msg.angular = 0
+    twist_msg.angular.z = 0
     pub_cmd.publish(twist_msg)
+    print('The robot is stopping')
 
 
 def main():
@@ -113,11 +116,11 @@ def main():
 
     print('The robot is moving within the environment')
 
-    change_state(0)
+    # change_state(0)
     while True:
         go_forward(2) # in meters
         yaw(45) # in degree
-        go forward(3)
+        go_forward(3)
         yaw(360)
         # look_up()
         stop()
