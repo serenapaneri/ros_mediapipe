@@ -16,8 +16,6 @@ lin_vel = 0.3 # you should set this parameter
 ang_vel = 30 # you should set this parameter
 tilt = 1
 
-## PROVA CMD_VEL E BASTA SENZA NAMESPACE
-
 def change_state(state):
     """
       Function that switch between different states
