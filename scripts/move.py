@@ -5,16 +5,36 @@ from __future__ import print_function
 import rospy
 import math
 from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Point
 from geometry_msgs.msg import Pose
+from nav_msgs.msg import Odometry
+from tf import transformations
+
 
 # publishers for the topics /cmd_vel and /body_pose
 pub_cmd = None
 pub_body = None
+sub_odom = None
+
+position_ = Point()
+position_ = 0
+yaw_ = 0
 state_ = 0
 
 lin_vel = 0.3 # you should set this parameter
 ang_vel = 30 # you should set this parameter
 tilt = 1
+
+def odom_callback(msg):
+    global position_, yaw_
+    position_ = msg.pose.pose.position
+    quaternion = (msg.pose.pose.orientation.x,
+                  msg.pose.pose.orientation.y, 
+                  msg.pose.pose.orientation.z,
+                  msg.pose.pose.orientation.w)
+    euler = transformations.euler_from_quaternion(quaternion)
+    yaw_ = euler[2]
+
 
 def change_state(state):
     """
@@ -22,6 +42,16 @@ def change_state(state):
     """
     global state_
     state_ = state
+
+
+def normalize_angle(angle):
+    """
+    This function is used to normalized the angle
+    It always stays from o to 180°
+    """
+    if(math.fabs(angle) > math.pi):
+        angle = angle - (2 * math.pi * angle) / (math.fabs(angle))
+    return angle
 
 
 def go_forward(distance):
@@ -87,6 +117,22 @@ def look_up():
     print('The robot is looking up')
     # change_state(2)
 
+def look_up2(tilt):
+
+    pose_msg = Pose()
+    quaternion = (pose_msg.orientation.x 
+                  pose_msg.orientation.y
+                  pose_msg.orientation.z
+                  pose_msg.orientation.w)
+
+    euler = transformations.euler_from_quaternion(quaternion)
+    pitch_ = euler[1]
+    pitch_ = tilt # should be an angle in degree 
+
+    pub_body.publish(pose_msg)
+    print('The robot is looking up')
+    # change_state(2)
+
 
 def stop():
     """
@@ -105,12 +151,13 @@ def main():
       and moreover the two function above are limited to a chosen distance.
       In addition there could be a third state in which the robot tilt up.
     """
-    global pub_cmd, pub_body
+    global pub_cmd, pub_body, sub_odom
     rospy.init_node('move')
 
     # publishers for /cmd_vel and /body_pose
     pub_cmd = rospy.Publisher('/spot/cmd_vel', Twist, queue_size = 1)
     pub_body = rospy.Publisher('/spot/body_pose', Pose, queue_size = 1)
+    sub_odom = rospy.Subscriber('/spot/odometry', Odometry, odom_callback)
 
     print('The robot is moving within the environment')
 
