@@ -17,7 +17,7 @@ objp[:,:2] = np.mgrid[0:chessboardSize[0],0:chessboardSize[1]].T.reshape(-1,2)
 objpoints = [] # 3d point in real world space
 imgpoints = [] # 2d points in image plane.
 
-images = glob.glob('*.jpg')
+images = glob.glob(r'images/*.jpg')
 # print(len(images))
 found = 0
 discarded = 0
