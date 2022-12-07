@@ -8,7 +8,6 @@ import mediapipe as mp
 import numpy as np
 import matplotlib.pyplot as plt
 import cv_bridge
-import yaml
 import time
 import os
 import math
@@ -40,16 +39,8 @@ class mediapipe:
         """
           Callback function of the rgb camera 
         """
-        with open ("calibration_matrix.yaml") as file:
-            document = yaml.full_load(file)
-            print(document)
-            print('-----------')
-            print(document["camera_matrix"])
-            print('-----------')
-            print(document["dist_coeff"])
         try:
             cv_image = self.bridge.imgmsg_to_cv2(data, 'bgr8')
-            # undistorted_image = cv2.undistort
         except CvBridgeError as e:
             print(e)
 
@@ -78,14 +69,14 @@ class mediapipe:
                                      self.mp_drawing.DrawingSpec(color=(245,66,230), thickness=2, circle_radius=2)
                                      )
 
+        
 
             cv2.imshow("mediapipe_image", rgb_image)
             cv2.waitKey(3)
 
 
-
 def main(args):
-    rospy.init_node("mediapipe_stream", anonymous = True)
+    rospy.init_node("compute_blinking", anonymous = True)
     medpipe = mediapipe()
 
     try:

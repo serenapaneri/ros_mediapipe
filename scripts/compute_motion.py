@@ -8,7 +8,6 @@ import mediapipe as mp
 import numpy as np
 import matplotlib.pyplot as plt
 import cv_bridge
-import yaml
 import time
 import os
 import math
@@ -40,16 +39,8 @@ class mediapipe:
         """
           Callback function of the rgb camera 
         """
-        with open ("calibration_matrix.yaml") as file:
-            document = yaml.full_load(file)
-            print(document)
-            print('-----------')
-            print(document["camera_matrix"])
-            print('-----------')
-            print(document["dist_coeff"])
         try:
             cv_image = self.bridge.imgmsg_to_cv2(data, 'bgr8')
-            # undistorted_image = cv2.undistort
         except CvBridgeError as e:
             print(e)
 
@@ -60,7 +51,6 @@ class mediapipe:
 
             # make detections
             results = holistic.process(rgb_image)
-            if result.pose_landmarks:
 
             # in order to work with opencv we need the BGR format
             rgb_image.flags.writeable = True
@@ -78,14 +68,44 @@ class mediapipe:
                                      self.mp_drawing.DrawingSpec(color=(245,66,230), thickness=2, circle_radius=2)
                                      )
 
+        
 
             cv2.imshow("mediapipe_image", rgb_image)
             cv2.waitKey(3)
 
+            # extract landmarks
+            try:
+                landmarks = results.pose_landmarks.landmark
+            except:
+                pass
+
+            # left arm
+            left_pinky = [landmarks[mp_pose.PoseLandmark.LEFT_PINKY.value].x, landmarks[mp_pose.PoseLandmark.LEFT_PINKY.value].y]
+            left_wrist = [landmarks[mp_pose.PoseLandmark.LEFT_WRIST.value].x, landmarks[mp_pose.PoseLandmark.LEFT_WRIST.value].y]
+            left_elbow = [landmarks[mp_pose.PoseLandmark.LEFT_ELBOW.value].x, landmarks[mp_pose.PoseLandmark.LEFT_ELBOW.value].y]
+            left_shoulder = [landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value].x, landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value].y]
+
+            # right arm
+            right_pinky = [landmarks[mp_pose.PoseLandmark.RIGHT_PINKY.value].x, landmarks[mp_pose.PoseLandmark.RIGHT_PINKY.value].y]
+            right_wrist = [landmarks[mp_pose.PoseLandmark.RIGHT_WRIST.value].x, landmarks[mp_pose.PoseLandmark.RIGHT_WRIST.value].y]
+            right_elbow = [landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value].x, landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value].y]
+            right_shoulder = [landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].x, landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].y]
+
+            # left leg
+            left_hip = [landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].x, landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].y]
+            left_knee = [landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].x, landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].y]
+            left_ankle = [landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value].x, landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value].y]
+            left_foot_index = [landmarks[mp_pose.PoseLandmark.LEFT_FOOT_INDEX.value].x, landmarks[mp_pose.PoseLandmark.LEFT_FOOT_INDEX.value].y]
+
+            # right leg
+            right_hip = [landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value].x, landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value].y]
+            right_knee = [landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value].x, landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value].y]
+            right_ankle = [landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value].x, landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value].y]
+            right_foot_index = [landmarks[mp_pose.PoseLandmark.RIGHT_FOOT_INDEX.value].x, landmarks[mp_pose.PoseLandmark.RIGHT_FOOT_INDEX.value].y]
 
 
 def main(args):
-    rospy.init_node("mediapipe_stream", anonymous = True)
+    rospy.init_node("compute_motion", anonymous = True)
     medpipe = mediapipe()
 
     try:

@@ -101,7 +101,7 @@ class mediapipe:
 
             # extract landmarks
             try:
-                landmarks = result.pose_landmarks.landmark
+                landmarks = results.pose_landmarks.landmark
             except:
                 pass
 
