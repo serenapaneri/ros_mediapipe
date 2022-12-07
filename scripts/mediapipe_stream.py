@@ -34,37 +34,40 @@ class mediapipe:
 
         # subscribers to the camera topic
         self.camera_sub = rospy.Subscriber("/spot/camera/back/image", Image, self.camera_callback)
+
+        # camera calibration parameters
+        with open ("calibration_matrix.yaml") as file:
+            self.document = yaml.full_load(file)
         
 
     def camera_callback(self, data):
         """
           Callback function of the rgb camera 
         """
-        with open ("calibration_matrix.yaml") as file:
-            document = yaml.full_load(file)
-            print(document)
-            print('-----------')
-            print(document["camera_matrix"])
-            print('-----------')
-            print(document["dist_coeff"])
         try:
             cv_image = self.bridge.imgmsg_to_cv2(data, 'bgr8')
-            # undistorted_image = cv2.undistort
         except CvBridgeError as e:
             print(e)
 
+        # undistort image
+        h, w = cv_image.shape[:2]
+        newcameramatrix, roi = cv2.getOptimalNewCameraMatrix(self.document["camera_matrix"], self.document["dist_coeff"], (w,h), 1, (w,h))
+        mapx, mapy = cv2.initUndistortRectifyMap(self.document["camera_matrix"], self.document["dist_coeff"], None, newcameramatrix, (w,h), 5)
+        dst = cv2.remap(cv_image, mpx, mpy, cv2.INTER_LINEAR)
+        x, y, w, h = roi
+        dst = dst[y:y+h, x:x+w]
+
         with self.mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
             # in order to work with mediapipe we need the format RGB
-            rgb_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
+            rgb_image = cv2.cvtColor(dst, cv2.COLOR_BGR2RGB)
             rgb_image.flags.writeable = False
 
             # make detections
             results = holistic.process(rgb_image)
-            if result.pose_landmarks:
-
+   
             # in order to work with opencv we need the BGR format
             rgb_image.flags.writeable = True
-            rgb_image = cv2.cvtColor(data, cv2.COLOR_RGB2BGR)
+            rgb_image = cv2.cvtColor(rgb_image, cv2.COLOR_RGB2BGR)
 
             # face mesh model
             self.mp_drawing.draw_landmarks(rgb_image, results.face_landmarks, self.mp_holistic.FACE_CONNECTIONS,
@@ -81,8 +84,6 @@ class mediapipe:
 
             cv2.imshow("mediapipe_image", rgb_image)
             cv2.waitKey(3)
-
-
 
 def main(args):
     rospy.init_node("mediapipe_stream", anonymous = True)
