@@ -36,7 +36,7 @@ class mediapipe:
         self.camera_sub = rospy.Subscriber("/spot/camera/back/image", Image, self.camera_callback)
 
         # camera calibration parameters
-        with open ("calibration_matrix.yaml") as file:
+        with open (r'/home/spot/ros_ws/src/spot_mediapipe/calibration/calibration_matrix.yaml') as file:
             self.document = yaml.full_load(file)
         
 
