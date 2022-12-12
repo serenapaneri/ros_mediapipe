@@ -52,7 +52,8 @@ class mediapipe:
         except CvBridgeError as e:
             print(e)
 
-        dst = undistorted(cv_image)
+        dst = undistorted_map(cv_image)
+        # dst = undistorted_simple(cv_image)
 
         with self.mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
             # in order to work with mediapipe we need the format RGB
@@ -103,15 +104,27 @@ def calculate_angle(a, b, c):
             angle = 360 - angle
         return angle
 
-def undistorted(image):
-    with open (r'/home/spot/ros_ws/src/spot_mediapipe/scripts/calibration_matrix.yaml') as file:
+def undistorted_map(image):
+    with open (r'/home/spot/ros_ws/src/spot_mediapipe/scripts/calibration_matrix_old.yaml') as file:
         document = yaml.load(file)
         camera_matrix = np.array(document["camera_matrix"])
         dist_coeff = np.array(document["dist_coeff"])
         h, w = image.shape[:2]
-        newcameramatrix, roi = cv2.getOptimalNewCameraMatrix(camera_matrix, dist_coeff[0], (w,h), 1, (w,h))
-        mapx, mapy = cv2.initUndistortRectifyMap(camera_matrix, dist_coeff[0], None, newcameramatrix, (w,h), 5)
+        newcameramatrix, roi = cv2.getOptimalNewCameraMatrix(camera_matrix, dist_coeff, (w,h), 1, (w,h))
+        mapx, mapy = cv2.initUndistortRectifyMap(camera_matrix, dist_coeff, None, newcameramatrix, (w,h), 5)
         dst = cv2.remap(image, mapx, mapy, cv2.INTER_LINEAR)
+        x, y, w, h = roi
+        dst = dst[y:y+h, x:x+w]
+        return dst
+
+def undistorted_simple(image):
+    with open (r'/home/spot/ros_ws/src/spot_mediapipe/scripts/calibration_matrix_old.yaml') as file:
+        document = yaml.load(file)
+        camera_matrix = np.array(document["camera_matrix"])
+        dist_coeff = np.array(document["dist_coeff"])
+        h, w = image.shape[:2]
+        newcameramatrix, roi = cv2.getOptimalNewCameraMatrix(camera_matrix, dist_coeff, (w,h), 1, (w,h))
+        dst = cv2.undistort(image, camera_matrix, dist_coeff, None, newcameramatrix)
         x, y, w, h = roi
         dst = dst[y:y+h, x:x+w]
         return dst
