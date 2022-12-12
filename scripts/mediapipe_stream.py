@@ -105,7 +105,7 @@ def calculate_angle(a, b, c):
         return angle
 
 def undistorted_map(image):
-    with open (r'/home/spot/ros_ws/src/spot_mediapipe/scripts/calibration_matrix_old.yaml') as file:
+    with open (r'/home/spot/ros_ws/src/spot_mediapipe/calibration/calibration_matrix_old.yaml') as file:
         document = yaml.load(file)
         camera_matrix = np.array(document["camera_matrix"])
         dist_coeff = np.array(document["dist_coeff"])
@@ -118,7 +118,7 @@ def undistorted_map(image):
         return dst
 
 def undistorted_simple(image):
-    with open (r'/home/spot/ros_ws/src/spot_mediapipe/scripts/calibration_matrix_old.yaml') as file:
+    with open (r'/home/spot/ros_ws/src/spot_mediapipe/calibration/calibration_matrix_old.yaml') as file:
         document = yaml.load(file)
         camera_matrix = np.array(document["camera_matrix"])
         dist_coeff = np.array(document["dist_coeff"])
