@@ -128,6 +128,14 @@ def undistorted_simple(image):
         x, y, w, h = roi
         dst = dst[y:y+h, x:x+w]
         return dst
+
+def resolution_interpolation(image):
+    res = cv2.resize(imgage, (1024, 768), fx = 0, fy = 0, interpolation=cv2.INTER_LINEAR)
+    return res
+
+def enhance(image):
+    en = cv2.detailEnhance(image, sigma_s=10, sigma_r=0.15)
+    return en
         
 
 def main(args):
