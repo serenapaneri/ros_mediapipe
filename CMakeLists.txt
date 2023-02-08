@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   image_transport
   sensor_msgs
   std_msgs
+  message_generation
   visualization_msgs
   geometry_msgs
   message_filters
@@ -60,11 +61,14 @@ find_package (OpenCV REQUIRED)
 # )
 
 ## Generate services in the 'srv' folder
-# add_service_files(
-#   FILES
-#   Service1.srv
-#   Service2.srv
-# )
+ add_service_files(
+   FILES
+   Movement.srv
+   Pose.srv
+   Blink.srv
+   Audio.srv
+   Trauma.srv
+ )
 
 ## Generate actions in the 'action' folder
 # add_action_files(
@@ -74,10 +78,10 @@ find_package (OpenCV REQUIRED)
 # )
 
 ## Generate added messages and services with any dependencies listed here
-# generate_messages(
-#   DEPENDENCIES
+ generate_messages(
+   DEPENDENCIES
 #   sensor_msgs#   std_msgs
-# )
+ )
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -123,7 +127,7 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-# include
+  include
   ${catkin_INCLUDE_DIRS}
 )
 
@@ -168,13 +172,10 @@ include_directories(
 ## Mark executable scripts (Python etc.) for installation
 ## in contrast to setup.py, you can choose the destination
  catkin_install_python(PROGRAMS
-   scripts/frames_config.py
-   scripts/holistic.py
-   scripts/pose.py
-   scripts/iris.py
-   scripts/control.py
    scripts/mediapipe_stream.py
-   scripts/prova.py
+   scripts/frames_config.py
+   scripts/motion.py
+   scripts/state_machine_simple.py
    DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
  )
 

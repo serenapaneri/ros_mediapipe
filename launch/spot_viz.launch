@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <launch>
 
-    <node name="markers" pkg="spot_mediapipe" type="markers.py" />
+<node name="markers" pkg="spot_mediapipe" type="markers.py"/>
 
-    <include file="$(find spot_viz)/launch/view_robot.launch"></include>
+<include file="$(find spot_viz)/launch/view_robot.launch"></include>
 
 </launch>

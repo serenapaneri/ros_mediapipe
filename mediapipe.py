@@ -85,11 +85,11 @@ class mediapipe:
                                      self.mp_drawing.DrawingSpec(color=(245,66,230), thickness=2, circle_radius=2)
                                      )
 
-            if self.results is not None and self.results.pose_landmarks:
-                pts = self.results.pose_landmarks.landmark
+            if self.result is not None and self.result.pose_landmarks:
+                pts = self.result.pose_landmarks.landmark
                 for id_,lm in enumerate(pts):
                     h, w, c = rgb_image.shape
-                    imgx,imgy=int(lm.x*w),int(lm.y*h)
+                    imgx, imgy = int((lm.x*w), int(lm.y*h))
                     self.landmarks.append((imgx,imgy))
 
             cv2.imshow("mediapipe_image", rgb_image)
@@ -110,8 +110,7 @@ class mediapipe:
             body = [['shoulder_line', [self.landmarks[11], self.landmarks[12]]], ['waist_line', [self.landmarks[23], self.landmarks[24]]], ['left_shoulder_waist', [self.landmarks[11],  self.landmarks[23]]], ['right_shoulder_waist', [self.landmarks[12], self.landmarks[24]]], ['right_thigh', [self.landmarks[24], self.landmarks[26]]], ['left_thigh',[self.landmarks[23], self.landmarks[25]]], ['right_leg', [self.landmarks[26], self.landmarks[28]]], ['left_leg', [self.landmarks[25], self.landmarks[27]]], ['right_forearm', [self.landmarks[14], self.landmarks[16]]], ['left_forearm', [self.landmarks[13], self.landmarks[15]]], ['right_bicep', [self.landmarks[12], self.landmarks[14]]], ['left_bicep', [self.landmarks[11], self.landmarks[13]]]]
 
             self.linelist.points = []
-            # self.linelist.header.frame_id = "kinect2_rgb_optical_frame"
-            self.linelist.header.frame_id = "odom"
+            self.linelist.header.frame_id = "kinect2_rgb_optical_frame"
             self.linelist.header.stamp = rospy.Time.now()
             self.linelist.type = Marker.LINE_LIST
 
@@ -141,8 +140,7 @@ class mediapipe:
             points = [self.landmarks[0], self.landmarks[15], self.landmarks[13], self.landmarks[11], self.landmarks[16], self.landmarks[14], self.landmarks[12], self.landmarks[23], self.landmarks[25], self.landmarks[27], self.landmarks[24], self.landmarks[26], self.landmarks[28]]
 
             self.spheres.points = []
-            # self.spheres.header.frame_id = "kinect2_rgb_optical_frame"
-            self.spheres.header.frame_id = "odom"
+            self.spheres.header.frame_id = "kinect2_rgb_optical_frame"
             self.spheres.header.stamp = rospy.Time.now()
 
             self.spheres.id = 0
@@ -171,7 +169,6 @@ class mediapipe:
 
 def main(args):
     rospy.init_node("mediapipe_stream", anonymous = True)
-    med = mediapipe()
     rospy.spin()
 
 if __name__ == '__main__':

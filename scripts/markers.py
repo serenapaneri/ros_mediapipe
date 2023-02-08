@@ -1,200 +1,162 @@
 #!/usr/bin/env python3
-#!coding=utf-8
 
-import cv2
-import time
+import rospy
 import mediapipe as mp
 import numpy as np
-import rospy
-import os
+import cv2
+import cv_bridge
 import sys
-import struct
-import message_filters as mf
-import sensor_msgs.point_cloud2 as pc2
 
 # needed to use cv_bridge with python 3
 sys.path.remove('/opt/ros/melodic/lib/python2.7/dist-packages')
 sys.path.append('/home/spot/cv_bridge_ws/install/lib/python3/dist-packages')
 
-from sensor_msgs.msg import Image,CameraInfo
 from cv_bridge import CvBridge, CvBridgeError
-# from cv_bridge.boost.cv_bridge_boost import getCvType
-from sensor_msgs.msg import PointCloud2, PointField
 from std_msgs.msg import Header
-from visualization_msgs.msg import Marker,MarkerArray
+from sensor_msgs.msg import Image
 from geometry_msgs.msg import Point
+from mediapipe_stream import *
+from spot_mediapipe.srv import Pose 
+from visualization_msgs.msg import MarkerArray,Marker
 
+# subscriber to the depth camera
+depth_sub = None
+# pose client
+pose_client = None
+# marker publisher
+marker_pub = None
 
-class pose3d_estim:
-    def __init__(self):
-        self.rgb_image_sub = mf.Subscriber("/spot/camera/back/image", Image)
-        self.depth_image_sub = mf.Subscriber("/spot/depth/back/image", Image)
-        self.camera_info_sub = mf.Subscriber("spot/depth/back/camera_info",CameraInfo)
-        self.mpPose=mp.solutions.pose
-        self.pose=self.mpPose.Pose()
-        self.mpDraw=mp.solutions.drawing_utils
-        ts = mf.ApproximateTimeSynchronizer([self.rgb_image_sub, self.depth_image_sub,self.camera_info_sub], queue_size=10, slop=0.1)
-        ts.registerCallback(self.image_callback)
-        self.marker_pub=rospy.Publisher("marker_test", MarkerArray, queue_size=10)
-        self.bridge = CvBridge()
-        self.spheres,self.linelist=Marker(),Marker()
-        self.marker_array= MarkerArray()
-       
-     
+# for the visualization_msgs
+marker_array = MarkerArray()
+spheres = Marker()
+linelist = Marker()
  
-    def pose_2d_pts(self,image):
+# camera matrix coefficients
+camera_matrix = [1081.3720703125, 0.0, 959.5, 0.0, 1081.3720703125, 539.5, 0.0, 0.0, 1.0]
 
-        """ Gets 2d pose from image. """
-        '''
-        image- rgb image 
-        return:-
-        pts - list of 2d pose landmarks as img coords
-        image- rgb image on which the 2d pose landmarks are drawn
-        '''   
-        pts=[]
-        imgRGB=cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
-        results=self.pose.process(imgRGB)
-        if results.pose_landmarks:
-            self.mpDraw.draw_landmarks(image,results.pose_landmarks,self.mpPose.POSE_CONNECTIONS)
-            for id,lm in enumerate(results.pose_landmarks.landmark):
-                h,w,c=image.shape
-                imgx,imgy=int(lm.x*w),int(lm.y*h)
-                
-                pts.append((imgx,imgy)) 
-        return pts,image
+# depth array
+depth_arr = []
 
-    def create_line_list(self,depth_arr,rpts):
-        """ Creates linelist marker in kinect_frame. """
+landmarks = []
 
-        '''
-        depth_arr- depth image as numpy array
-        '''
+def depth_callback(depth_data):
+    global depth_arr
+    bridge = CvBridge()
+    depth_img= bridge.imgmsg_to_cv2(depth_data,"passthrough")
+    depth_arr = np.array(depth_img)
+    return depth_arr
 
-        try:
-            body=[['shoulder_line',[rpts[11],rpts[12]]],['waist_line',[rpts[23],rpts[24]]],['left_shoulder_waist',[rpts[11],rpts[23]]],
-            ['right_shoulder_waist',[rpts[12],rpts[24]]],['right_thigh',[rpts[24],rpts[26]]],['left_thigh',[rpts[23],rpts[25]]],
-            ['right_leg',[rpts[26],rpts[28]]],['left_leg',[rpts[25],rpts[27]]],['right_forearm',[rpts[14],rpts[16]]],
-            ['left_forearm',[rpts[13],rpts[15]]],['right_bicep',[rpts[12],rpts[14]]],['left_bicep',[rpts[11],rpts[13]]]]
-            self.linelist.points=[]
-            self.linelist.header.frame_id = "kinect_frame"
-            self.linelist.header.stamp = rospy.Time.now()
-            self.linelist.type = Marker.LINE_LIST
-            self.linelist.pose.orientation.w = 1.0
-            self.linelist.id=1
-            self.linelist.action = Marker.ADD 
-            self. linelist.scale.x = 0.05
 
-            self.linelist.color.g = 1.0
-            self.linelist.color.a = 1.0
+def create_line_list(depth_arr_, landmarks_):
+    global linelist, landmarks
+    try:
+        body=[['shoulder_line', [landmarks_[11], landmarks_[12]]], ['waist_line', [landmarks_[23], landmarks_[24]]], ['left_shoulder_waist', [landmarks_[11], landmarks_[23]]],
+            ['right_shoulder_waist', [landmarks_[12], landmarks_[24]]], ['right_thigh', [landmarks_[24], landmarks_[26]]], ['left_thigh', [landmarks_[23], landmarks_[25]]],
+            ['right_leg', [landmarks_[26], landmarks_[28]]], ['left_leg', [landmarks_[25], landmarks_[27]]], ['right_forearm', [landmarks_[14], landmarks_[16]]],
+            ['left_forearm', [landmarks_[13], landmarks_[15]]], ['right_bicep', [landmarks_[12], landmarks_[14]]], ['left_bicep', [landmarks_[11], landmarks_[13]]]]
+        linelist.points = []
+        linelist.header.frame_id = "kinect2_rgb_optical_frame"
+        linelist.header.stamp = rospy.Time.now()
+        linelist.type = Marker.LINE_LIST
+        linelist.pose.orientation.w = 1.0
+        linelist.id = 1
+        linelist.action = Marker.ADD 
+        linelist.scale.x = 0.05
 
-            
+        linelist.color.g = 1.0
+        linelist.color.a = 1.0
 
-            for _,pointl in body:
-                for pt in pointl:
-                    depth_val=float(depth_arr[pt[1], pt[0]])
-                    ptl_x,ptl_y,ptl_z=self.depth_to_xyz(pt[0],pt[1],depth_val)
+        for _,pointl in body:
+            for pt in pointl:
+                depth_val = float(depth_arr_[pt[1], pt[0]])
+                ptl_x,ptl_y,ptl_z = depth_to_xyz(pt[0],pt[1],depth_val)
                    
-                    self.linelist_point=Point()
-                    self.linelist_point.x = ptl_x
-                    self.linelist_point.y = ptl_y
-                    self.linelist_point.z = ptl_z
-                    self.linelist.points.append(self.linelist_point)
+                linelist_point = Point()
+                linelist_point.x = ptl_x
+                linelist_point.y = ptl_y
+                linelist_point.z = ptl_z
+                linelist.points.append(linelist_point)
                 
-        except:
-            pass         
-    def create_spheres(self,depth_arr,rpts):
-        """ Creates sphere list marker in kinect_frame. """
+    except:
+        pass
 
 
-        '''
-        depth_arr-  depth image as numpy array
-        '''
-
-        try:
-            #points=[nose,left_wrist,right,wrist,left_ankle,right ankle]
-            points=[rpts[0],rpts[15],rpts[16],rpts[27],rpts[28]]
-            self.spheres.points=[]
-            self.spheres.header.frame_id = "kinect_frame"
-            self.spheres.header.stamp= rospy.Time.now()
+def create_spheres(depth_arr_, landmarks_):
+    global spheres
+    try:
+        points = [landmarks_[0], landmarks_[15], landmarks_[13], landmarks_[11], landmarks_[23], landmarks_[25], landmarks_[27], landmarks_[16], landmarks_[14], landmarks_[12], landmarks_[24], landmarks_[26], landmarks_[28]]
+        spheres.points = []
+        spheres.header.frame_id = "kinect2_rgb_optical_frame"
+        # spheres.header.frame_id = "odom"
+        spheres.header.stamp= rospy.Time.now()
                                 
-            self.spheres.id = 0
-            self.spheres.action =Marker.ADD
+        spheres.id = 0
+        spheres.action = Marker.ADD
                 
-                    #points
-            self.spheres.type = Marker.SPHERE_LIST
-            self.spheres.pose.orientation.w = 1.0
-            self.spheres.color.r = 1.0
-            self.spheres.color.a = 1.0
+        #points
+        spheres.type = Marker.SPHERE_LIST
+        spheres.pose.orientation.w = 1.0
+        spheres.color.r = 1.0
+        spheres.color.a = 1.0
                     
-            self.spheres.scale.x = 0.08
-            self.spheres.scale.y = 0.08
-            self.spheres.scale.z = 0.01
-            for p in points:
-                depth_val=float(depth_arr[p[1], p[0]])
-                pts_x,pts_y,pts_z=self.depth_to_xyz(p[0],p[1],depth_val)
+        spheres.scale.x = 0.08
+        spheres.scale.y = 0.08
+        spheres.scale.z = 0.01
+
+        for p in points:
+            depth_val = float(depth_arr_[p[1], p[0]])
+            pts_x, pts_y, pts_z = depth_to_xyz(p[0], p[1], depth_val)
                 
-                self.sphere_point=Point()
-                self.sphere_point.x = pts_x
-                self.sphere_point.y = pts_y
-                self.sphere_point.z = pts_z
-                self.spheres.points.append(self.sphere_point)
+            sphere_point = Point()
+            sphere_point.x = pts_x
+            sphere_point.y = pts_y
+            sphere_point.z = pts_z
+            spheres.points.append(sphere_point)
                     
-        except:
-            pass            
-                    
-    def depth_to_xyz(self,u,v,depth_val):
-        """  xyz from u,v image coords """
-        '''
-        u - x image coordinate
-        v - y image coodrinate
-        depth_val - depth value at that (u,v) from depth_image
-        '''
+    except:
+        pass
 
-        fx=self.cam_intrin[0]
-        fy=self.cam_intrin[4]
-        cx=self.cam_intrin[2]
-        cy=self.cam_intrin[5]
 
-        z = float(depth_val)
-        x = float((u - cx)/fx)*z
-        y = float((v - cy)/fy)*z
+def depth_to_xyz(u,v,depth_val):
+    global camera_matrix
 
-        result = [x, y, z]
-        return result
+    # these are the intrinsic parameter of the camera
+    fx = camera_matrix[0]
+    fy = camera_matrix[4]
+    cx = camera_matrix[2]
+    cy = camera_matrix[5]
 
-    def image_callback(self,rgb_data,depth_data,camera_data):
-        try:
-            img = self.bridge.imgmsg_to_cv2(rgb_data,"bgr8")
-            d_img= self.bridge.imgmsg_to_cv2(depth_data,"passthrough")
-            print(d_img.shape,img.shape)
-            rpts,rimg=self.pose_2d_pts(img)
-            depth_arr=np.array(d_img)
-            
-            self.cam_intrin=list(camera_data.K)
-            self.create_line_list(depth_arr,rpts)
-            self.create_spheres(depth_arr,rpts)
-            self.marker_array.markers.extend([self.spheres,self.linelist])
-            self.marker_pub.publish(self.marker_array)
+    z = float(depth_val)
+    x = float((u - cx)/fx)*z
+    y = float((v - cy)/fy)*z
 
-            
-        except CvBridgeError as e:
-            print(e)
-           
-        cv2.imshow('image',rimg)
-        cv2.waitKey(1)
+    result = [x, y, z]
 
+    return result
    
-  
 
+def main():
 
-def main(args):
-  rospy.init_node('markers', anonymous=True)
-  p3d= pose3d_estim()
-  try:
-    rospy.spin()
-  except KeyboardInterrupt:
-    print("Shutting down")
-  cv2.destroyAllWindows()
+    global depth_sub, info_sub, pose_client, marker_pub, spheres, linelist, depth_arr
+    # initializing the node
+    rospy.init_node('markers', anonymous=True)
 
+    # depth camera subscriber
+    depth_sub = rospy.Subscriber("/kinect2/hd/image_depth_rect", Image, depth_callback)
+    # pose service
+    pose_client = rospy.ServiceProxy('pose', Pose)
+    # marker publisher
+    marker_pub = rospy.Publisher('marker_display', MarkerArray, queue_size = 10)
+
+    create_line_list(depth_arr, rpts)
+    create_spheres(depth_arr, rpts)
+    marker_array.markers.extend(spheres)
+    marker_array.markers.extend(linelist)
+    marker_pub.publish(marker_array)
+    try:
+        rospy.spin()
+    except KeyboardInterrupt:
+        print("Shutting down")
+        
 if __name__ == '__main__':
-    main(sys.argv)
+    main()
