@@ -6,8 +6,14 @@ import math
 # from mediapipe_stream_init import *
 from mediapipe_stream import *
 from spot_mediapipe.srv import Movement, MovementResponse
-from spot_mediapipe.srv import Pose, PoseResponse
+from spot_mediapipe.srv import HumanPose, HumanPoseResponse
 from spot_mediapipe.srv import Blink, BlinkResponse
+# from spot_mediapipe.srv import Detection, DetectionResponse
+
+# detection_srv = None
+motion_srv = None
+pose_srv = None
+blink_srv = None
 
 motion_left_elbow = []
 motion_left_shoulder = []
@@ -29,8 +35,15 @@ motion_rs = False
 motion_rh = False
 motion_rk = False
 
+detection = False
+
+vis_left_hip_angle = False
+vis_right_hip_angle = False
+
 motion = False
 blink = False
+
+pose_detection = 0
 
 open_counter = 0
 close_counter = 0
@@ -40,6 +53,13 @@ blink_list = []
 
 v = 0.95
 
+# def human_detection(req):
+
+#     global detection
+#     res = DetectionResponse()
+#     res.detected = detection
+#     return res 
+
 def motion_handle(req):
     global motion
     res = MovementResponse()
@@ -48,9 +68,9 @@ def motion_handle(req):
 
 def pose_handle(req):
 
-    global landmarks
+    global pose_detection
     res = PoseResponse()
-    res.landmarks = landmarks
+    res.pose_ = pose_detection
     return res   
 
 
@@ -85,22 +105,27 @@ def calculate_distance(p1, p2):
 
 def main():
 
-    global motion, open_counter, close_counter, blink_counter, blink_list, blink, landmarks, v, motion_le, motion_ls, motion_lh, motion_lk, motion_re, motion_rs, motion_rh, motion_rk
+    global motion_srv, pose_srv, blink_srv, motion, open_counter, close_counter, blink_counter, blink_list, blink, landmarks, v, motion_le, motion_ls, motion_lh, motion_lk, motion_re, motion_rs, motion_rh, motion_rk, pose_detection, vis_left_hip_angle, vis_right_hip_angle
 
     rospy.init_node("motion", anonymous = True)
     medpipe = mediapipe()
 
+    # detection_srv = rospy.Service('detection', Detection, human_detection)
     motion_srv = rospy.Service('movement', Movement, motion_handle)
-    pose_srv = rospy.Service('pose', Pose, pose_handle)
+    pose_srv = rospy.Service('human_pose', HumanPose, pose_handle)
     blink_srv = rospy.Service('blink', Blink, blink_handle)
 
     # rate = rospy.Rate(5)
-    # rate = rospy.Rate(1)
-    rate = rospy.Rate(10)
+    rate = rospy.Rate(1)
+    # rate = rospy.Rate(10)
     while True:
         if medpipe.results is not None and medpipe.results.pose_landmarks and medpipe.results.face_landmarks:
+
+            detection = True
             landmarks = medpipe.results.pose_landmarks.landmark
             f_landmarks = medpipe.results.face_landmarks.landmark
+
+            #################### MOTION DETECTION ####################
 
             # nose
             nose = [landmarks[0].x, landmarks[0].y, landmarks[0].z]
@@ -177,8 +202,8 @@ def main():
 
             # left body angles
             if left_knee_v > v and left_hip_v > v and left_shoulder_v > v:
+                vis_left_hip_angle = True
                 left_hip_angle = calculate_angle(left_knee_, left_hip_, left_shoulder_)
-                print('left_hip_angle : {}'.format(left_hip_angle))
                 motion_left_hip.append(left_hip_angle)
 
             if left_ankle_v > v and left_knee_v > v and left_hip_v > v:
@@ -199,7 +224,7 @@ def main():
             # right body angles
             if right_knee_v > v and right_hip_v > v and right_shoulder_v > v:
                 right_hip_angle = calculate_angle(right_knee_, right_hip_, right_shoulder_)
-                print('right_hip_angle : {}'.format(right_hip_angle))
+                vis_right_hip_angle = True
                 motion_right_hip.append(right_hip_angle)
 
             if right_ankle_v > v and right_knee_v > v and right_hip_v > v:
@@ -303,6 +328,9 @@ def main():
                 print('The person is not moving')        
 
 
+
+            #################### BLINKING DETECTION ####################
+
             # left eye
             left_eye_up = np.array((f_landmarks[386].x, f_landmarks[386].y))
             left_eye_down = np.array((f_landmarks[373].x, f_landmarks[373].y))
@@ -350,28 +378,82 @@ def main():
                     print(blink_list[-1])
                     rate.sleep()
 
-            nose_prova = np.array((landmarks[0].x, landmarks[0].y))
-            piede_destro_prova = np.array((landmarks[28].x, landmarks[28].y))
-            piede_sinistro_prova = np.array((landmarks[27].x, landmarks[27].y))
 
-            if left_ankle_v > v:
-                print('Distance between nose and left ankle: {}'.format(calculate_distance(nose_prova, piede_sinistro_prova)))
-            elif right_ankle_v > v:
-                print('Distance between nose and right ankle: {}'.format(calculate_distance(nose_prova, piede_destro_prova)))
+
+
+            #################### POSE DETECTION ####################
+
+            # pose_detection == 1 --> standing up
+            # pose_detection == 2 --> sitting down
+            # pose_detection == 3 --> laying down
+
+            nose_pose = np.array((landmarks[0].x, landmarks[0].y))
+            left_ankle_pose = np.array((landmarks[27].x, landmarks[27].y))
+            right_ankle_pose = np.array((landmarks[28].x, landmarks[28].y))
+
+            if vis_left_hip_angle or vis_right_hip_angle: 
+
+                # in this case the person for sure is sitting down
+                if left_hip_angle <= 105 or right_hip_angle <= 105:
+                    pose_detection = 2 
+
+                # in this case the person could be both sitting down or laying down
+                elif 105 < left_hip_angle <= 162 or 105 < right_hip_angle <= 162:
+                    if left_ankle_v > v and left_ankle_v > right_ankle_v:
+                        x_ = abs(landmarks[0].x - landmarks[27].x) 
+                        y_ = abs(landmarks[0].y - landmarks[27].y)
+
+                        if x_ < y_ :
+                            pose_detection = 2
+                        else:
+                            pose_detection = 3
+
+                    elif right_ankle_v > v and right_ankle_v > left_ankle_v:
+                        x_ = abs(landmarks[0].x - landmarks[28].x) 
+                        y_ = abs(landmarks[0].y - landmarks[28].y)
+
+                        if x_ < y_ :
+                            pose_detection = 2
+                        else:
+                            pose_detection = 3
+
+                # in this case the person can be both standing up or laying down
+                elif left_hip_angle > 162 or right_hip_angle > 162:
+                    # if the left ankle is the more visible of the two
+                    if left_ankle_v > v and left_ankle_v > right_ankle_v:
+                        d_nose_left_ankle = calculate_distance(nose_pose, left_ankle_pose)
+                        if d_nose_left_ankle >= 0.6:
+                            pose_detection = 1
+                        else:
+                            pose_detection = 3
+                    # if the right ankle is the more visible of the two
+                    elif right_ankle_v > v and right_ankle_v > left_ankle_v:
+                        d_nose_right_ankle = calculate_distance(nose_pose, right_ankle_pose)
+                        if d_nose_right_ankle >= 0.6:
+                            pose_detection = 1
+                        else:
+                            pose_detection = 3
+
+                    else:
+                        print('Ankles not visible')
+                  
             else:
-                print('distance not visible')
+                print('Not totally visible')
 
-            print('Nose coordinates: {}'.format(nose))
-            print('Left ankle coordinates: {}'.format(left_ankle))
-            print('Right ankle coordinates: {}'.format(right_ankle))
 
-            
-            print('Distance between ankles: {}'.format(calculate_distance(piede_destro_prova, piede_sinistro_prova)))
-        
+            if pose_detection == 0:
+                print('No pose')
+            elif pose_detection == 1:
+                print('The person is standing up')
+            elif pose_detection == 2:
+                print('The person is sitting down')
+            elif pose_detection == 3:
+                print('The person is laying down')        
 
 
         # if there is not someone detected
         else:
+            detection = False
             print('No signal')
             rate.sleep()
 

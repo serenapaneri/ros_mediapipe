@@ -109,108 +109,110 @@ def main():
     q2 = """ Do you know where you are? """
     q3 = """ Does anything hurt? """
 
-    if start == True:
-        # get audio from the microphone
-        r = sr.Recognizer()
+    rate = rospy.Rate(1)
 
-        ## NAME    
-        tts = gTTS(text = q1, lang = 'en', tld = 'us', slow = True)
-        tts.save('q1.mp3')
-        process1 = subprocess.Popen(["audacious", '--quit-after-play', 'q1.mp3'])
-        process1.wait()
-        process1.terminate()
+    while not rospy.is_shutdown():
 
-        with sr.Microphone() as source:
+        if start == True:
+            # get audio from the microphone
+            r = sr.Recognizer()
+
+            ## NAME    
+            tts = gTTS(text = q1, lang = 'en', tld = 'us', slow = True)
+            tts.save('q1.mp3')
+            process1 = subprocess.Popen(["audacious", '--quit-after-play', 'q1.mp3'])
+            process1.wait()
+            process1.terminate()
+
+            with sr.Microphone() as source:
     
-            r.adjust_for_ambient_noise(source, duration = 0.5)
+                r.adjust_for_ambient_noise(source, duration = 0.5)
 
-            try:
-                audio1 = r.listen(source, timeout = 5)
-                answer1 = r.recognize_google(audio1)
-                answer1.lower()
-                print(answer1)
-                question_1 = 1
+                try:
+                    audio1 = r.listen(source, timeout = 5)
+                    answer1 = r.recognize_google(audio1)
+                    answer1.lower()
+                    print(answer1)
+                    question_1 = 1
 
-            except sr.UnknownValueError:
-                print("Could not understand audio")
-                question_1 = 2
-            except sr.WaitTimeoutError:
-                print("Timeout")
-                question_1 = 3
-            except sr.RequestError as e:
-                print("Could not request results; {0}".format(e))
-            time.sleep(3)
-
-
-        ## WHERE
-        tts = gTTS(text = q2, lang = 'en', tld = 'us', slow = True)
-        tts.save('q2.mp3')
-        process2 = subprocess.Popen(["audacious", '--quit-after-play', 'q2.mp3'])
-        process2.wait()
-        process2.terminate()
-
-        with sr.Microphone() as source:
-
-            r.adjust_for_ambient_noise(source, duration = 0.5)
-
-            try:
-                audio2 = r.listen(source, timeout = 5)
-                answer2 = r.recognize_google(audio2)
-                answer2.lower()
-                print(answer2)
-                question_2 = 1
-
-             except sr.UnknownValueError:
-                print("Could not understand audio")
-                question_2 = 2
-            except sr.WaitTimeoutError:
-                print("Timeout")
-                question_2 = 3
-            except sr.RequestError as e:
-                print("Could not request results; {0}".format(e))
-            time.sleep(3)
+                except sr.UnknownValueError:
+                    print("Could not understand audio")
+                    question_1 = 2
+                except sr.WaitTimeoutError:
+                    print("Timeout")
+                    question_1 = 3
+                except sr.RequestError as e:
+                    print("Could not request results; {0}".format(e))
 
 
-        ## TRAUMA
-        tts = gTTS(text = q3, lang = 'en', tld = 'us', slow = True)
-        tts.save('q3.mp3')
-        process3 = subprocess.Popen(["audacious", '--quit-after-play', 'q3.mp3'])
-        process3.wait()
-        process3.terminate()  
+            ## WHERE
+            tts = gTTS(text = q2, lang = 'en', tld = 'us', slow = True)
+            tts.save('q2.mp3')
+            process2 = subprocess.Popen(["audacious", '--quit-after-play', 'q2.mp3'])
+            process2.wait()
+            process2.terminate()
 
-        with sr.Microphone() as source:
+            with sr.Microphone() as source:
 
-            r.adjust_for_ambient_noise(source, duration = 0.5)
+                r.adjust_for_ambient_noise(source, duration = 0.5)
 
-            try:
-                audio3 = r.listen(source, timeout = 5)
-                answer3 = r.recognize_google(audio3)
-                answer3.lower()
-                print(answer3)
-                print(convert(answer3))
-                list_ = convert(answer3)
+                try:
+                    audio2 = r.listen(source, timeout = 5)
+                    answer2 = r.recognize_google(audio2)
+                    answer2.lower()
+                    print(answer2)
+                    question_2 = 1
 
-                question_3a = 1
-                question_3b = search_list(list_, trauma_list)
+                except sr.UnknownValueError:
+                    print("Could not understand audio")
+                    question_2 = 2
+                except sr.WaitTimeoutError:
+                    print("Timeout")
+                    question_2 = 3
+                except sr.RequestError as e:
+                    print("Could not request results; {0}".format(e))
 
-                print(question_3b)
 
-             except sr.UnknownValueError:
-                print("Could not understand audio")
-                question_3a = 2
-            except sr.WaitTimeoutError:
-                print("Timeout")
-                question_3a = 3
-            except sr.RequestError as e:
-                print("Could not request results; {0}".format(e))
-            time.sleep(3)
+            ## TRAUMA
+            tts = gTTS(text = q3, lang = 'en', tld = 'us', slow = True)
+            tts.save('q3.mp3')
+            process3 = subprocess.Popen(["audacious", '--quit-after-play', 'q3.mp3'])
+            process3.wait()
+            process3.terminate()  
 
-            go_on = True
+            with sr.Microphone() as source:
 
-    elif start == False:
-        go_on = False
+                r.adjust_for_ambient_noise(source, duration = 0.5)
 
-    rospy.spin()
+                try:
+                    audio3 = r.listen(source, timeout = 5)
+                    answer3 = r.recognize_google(audio3)
+                    answer3.lower()
+                    print(answer3)
+                    print(convert(answer3))
+                    list_ = convert(answer3)
+
+                    question_3a = 1
+                    question_3b = search_list(list_, trauma_list)
+
+                    print(question_3b)
+
+                except sr.UnknownValueError:
+                    print("Could not understand audio")
+                    question_3a = 2
+                except sr.WaitTimeoutError:
+                    print("Timeout")
+                    question_3a = 3
+                except sr.RequestError as e:
+                    print("Could not request results; {0}".format(e))
+
+                go_on = True
+                rate.sleep()
+
+        elif start == False:
+            go_on = False
+            rate.sleep()
+
 
 if __name__ == '__main__':
     main()

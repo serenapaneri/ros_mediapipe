@@ -8,6 +8,7 @@ import random
 import smach
 import smach_ros
 import time
+from docx import Document
 from geometry_msgs.msg import Twist
 from geometry_msgs.msg import Pose
 from geometry_msgs.msg import Point
@@ -16,18 +17,20 @@ from spot_mediapipe.srv import Audio
 from spot_mediapipe.srv import Trauma
 from spot_mediapipe.srv import Blink
 from spot_mediapipe.srv import Movement
-from spot_mediapipe.srv import Pose
+from spot_mediapipe.srv import HumanPose
 
 # audio client to start the trauma behavior
 audio_client = None 
-# trauma client to recieves the answers
+# trauma client to recieve the answers
 trauma_client = None 
-# motion client to recieves information about the movement
+# motion client to recieve information about the movement
 motion_client = None 
-# motion client to recieves information about the blinking
+# motion client to recieve information about the blinking
 blink_client = None
-# client to recieve the landmarks 
-pose_client = None # maybe it needs changes
+# client to recieve information about the pose 
+pose_client = None
+# detection client
+detection_client = None
 
 # velocity publisher
 pub_cmd = None
@@ -44,8 +47,14 @@ actual_yaw = 0
 landmarks = []
 
 # poses in which the person can be found 
-pose_ = 0 
+pose = 0 
+human_pose = 0
+detection = False
 
+# people found
+found_people = 0 
+
+stop = False
 
 ##### PARAMETERS #####
 
@@ -67,6 +76,8 @@ distance_laydown = 0 ## DA SETTARE
 # point where the person is
 goal_position_x = 0
 goal_position_y = 0
+
+start_time = 0
 
 
 ##
@@ -176,15 +187,21 @@ class Motion(smach.State):
         
     def execute(self, userdata):
      
-       global pose_client, pub_cmd, landmarks
+       global detection_client, pub_cmd, landmarks, detection, found_people
 
        # retrieving, if there are any the mediapipe markers
-       res_pose = pose_client()
-       landmarks = res_pose.landmarks
+       res_detection = detection_client()
+       detection = res_detection.detected
 
        # if a person is detected
-       if landmarks:
+       if detection:
+           found_people += 1
+           # creating the custom file for the person just found
+           doc = Document()
+           doc.add_heading('ID: 000' + str(found_people), 0)
+           start_time = time.time()  
            return 'compute_pose'
+
        # if there is nobody
        else:
            # here wuold go the exploration part, it is simplify as
@@ -208,21 +225,20 @@ class ComputePose(smach.State):
         
     def execute(self, userdata):
 
-        global pose_
+        global pose_client, pose
 
-        #### PERSONA IN PIEDI ####
-        ## DISTANZA TRA I PIEDI POCA, DISTANZA TRA NASO E PIEDI MASSIMA, ANGOLO HIP 180 GRADI ##
+        res_pose = pose_client()
+        pose = res_pose.pose_
 
-        #### PERSONA SEDUTA ####
-        ## DISTANZA TRA I PIEDI DIPENDE, DISTANZA TRA NASO E PIEDI MINIMA, ANGOLO HIP QUASI A 90 GRADI ##
-
-        #### PERSONA SDRAIATA ####
-        ## DISTANZA TRA I PIEDI NON POCA, DISTANZA TRA NASO E PIEDI MASSIMA, ANGOLO HIP 180 GRADI O POCO MENO, FORSE NASO E PIEDI QUASI STESSA Y ##
-     
-        # After the computation it will be:
-        # if the person is standing up: pose_ = 1
-        # if the person is sitting down: pose_ = 2
-        # if the person is laying down: pose_ = 3
+        # stand up
+        if pose == 1:
+            print('The person is standing up')
+        # sit down
+        elif pose == 2:
+            print('The person is sitting down')
+        # lay down
+        elif pose == 3:
+            print('The person is laying down')
    
         return 'go_to'
 
@@ -238,22 +254,22 @@ class GoTo(smach.State):
         
     def execute(self, userdata):
 
-        global pose_, distance_standup, distance_sitdown, distance_laydown, actual_position, goal_position_x, goal_position_y
+        global pose, distance_standup, distance_sitdown, distance_laydown, actual_position, goal_position_x, goal_position_y
        
         # implement move base
 
         # if the person is standing up
-        if pose_ == 1:
+        if pose == 1:
             while ((actual_position.x - goal_position_x)*(actual_position.x - goal_position_x) + (actual_position.y - goal_position_y)*(actual_position.y - goal_position_y)) > distance_standup:
                 time.sleep(0.1)    
 
         # if the person is sitting down
-        elif pose_ == 2:
+        elif pose == 2:
             while ((actual_position.x - goal_position_x)*(actual_position.x - goal_position_x) + (actual_position.y - goal_position_y)*(actual_position.y - goal_position_y)) > distance_sitdown:
                 time.sleep(0.1) 
 
         # if the person is laying down
-        elif pose_ == 3:
+        elif pose == 3:
             while ((actual_position.x - goal_position_x)*(actual_position.x - goal_position_x) + (actual_position.y - goal_position_y)*(actual_position.y - goal_position_y)) > distance_laydown:
                 time.sleep(0.1) 
     
@@ -290,21 +306,145 @@ class Analisys(smach.State):
         
     def execute(self, userdata):
 
-        global audio_client, trauma_client, motion_client, blink_client
+        global audio_client, trauma_client, motion_client, blink_client, pose, stop, start_time
 
-        audio_client
+        audio_client('start')
 
-        # empty the list containing the landmarks of the person just checked
-        landmarks.clear()
+        # trauma
+        res_trauma = trauma_client()
+        stop = res_trauma.ok
+
+        ### CONTROLLARE PERCHE MI PUZZA
+        while stop == False:
+            q1 = res_trauma.question1
+            q2 = res_trauma.question2
+            q3a = res_trauma.question3a
+            q3b = res_trauma.question3b
+            # stop = res_trauma.ok
+            time.sleep(0.1)
+
+        # verifica se prende le domande
+        audio_client('stop')
+
+        # motion client
+        res_motion = motion_client()
+        motion = res_motion.mot
+        print('Motion: {}'.format(motion))
+
+        # blink client
+        res_blink = blink_client()
+        blink = res_blink.blinking
+        print('Eye-blinking: {}'.format(blink))
+
+        # creating consciousness/unconsciousness table
+        doc.add_heading('Consciousness/Unconsciousness', 1)
+        table_c = doc.add_table(1, 2)
+
+        # pose
+        cell_c1 = table_c.rows[0].cells
+        cell_c1[0].text = 'Pose'
+        if pose == 1:
+            cell_c1[1].text = 'Stand up'
+        elif pose == 2:
+            cell_c1[1].text = 'Sit down'
+        elif pose == 3:
+            cell_c1[1].text = 'Lay down'
+
+        # motion
+        cell_c2 = table_c.add_row().cells
+        cell_c2[0].text = 'Motion'
+        cell_c2[1].text = str(motion)
+
+        # blink
+        cell_c3 = table_c.add_row().cells
+        cell_c3[0].text = 'Eye-blinking'
+        cell_c3[1].text = str(blink)
+
+        # talk
+        cell_c4 = table_c.add_row().cells
+        cell_c4[0].text = 'Response'
+        if q1 == 1 or q1 == 2 or q2 == 1 or q2 == 2 or q3a == 1 or q3a == 2:
+            print('Response: True')
+            cell_c4[1].text = 'True'
+        else:
+            print('Response: False')
+            cell_c4[1].text = 'False'
+
+
+        doc.add_heading('Trauma/Non-Trauma', 1)
+        table_t = doc.add_table(1, 2)
+
+        # first question
+        cell_t1 = table_t.rows[0].cells
+        cell_t1[0].text = 'Question 1'
+        if q1 == 1:
+            print('Question1: Clear answer')
+            cell_t1[1].text = 'Clear answer'
+        elif q1 == 2:
+            print('Question1: Confused answer')
+            cell_t1[1].text = 'Confused answer'
+        elif q1 == 3:
+            print('Question1: No answer')
+            cell_t1[1].text = 'No answer'
+
+        # second question
+        cell_t2 = table_t.add_row().cells
+        cell_t2[0].text = 'Question 2'
+        if q2 == 1:
+            print('Question2: Clear answer')
+            cell_t2[1].text = 'Clear answer'
+        elif q2 == 2:
+            print('Question2: Confused answer')
+            cell_t2[1].text = 'Confused answer'
+        elif q2 == 3:
+            print('Question2: No answer')
+            cell_t2[1].text = 'No answer'
+
+
+        # third question
+        cell_t3 = table_t.add_row().cells
+        cell_t3[0].text = 'Question 3'
+        if q3a == 1:
+            print('Question3: Clear answer')
+            cell_t3[1].text = 'Clear answer'
+        elif q3a == 2:
+            print('Question3: Confused answer')
+            cell_t3[1].text = 'Confused answer'
+        elif q3a == 3:
+            print('Question3: No answer')
+            cell_t3[1].text = 'No answer'
+
+
+        # trauma question
+        cell_t4 = table_t.add_row().cells
+        cell_t4[0].text = 'Trauma'
+        if q3b == True:
+            print('Trauma: True')
+            cell_t4[1].text = 'True'
+        elif q3b == False:
+            print('Trauma: False')
+            cell_t4[1].text = 'False'
+
+        stop_time = time.time()
+        time_needed = stop_time - start_time
+
+        print('Rescue time: {}'.format(time_needed))
+        par = doc.add_paragraph('Rescue time: {}'.format(time_needed)).bold = True
+
+        doc.add_page_break()
+        doc.save('/home/spot/ros_ws/src/spot_mediapipe/results/ID000{}.docx'.format(found_people))
+
         return 'everything_checked' 
         
 
 def main():
 
-    global audio_client, trauma_client, motion_client, pose_client, blink_client, pub_cmd, pub_body
+    global audio_client, trauma_client, motion_client, pose_client, detection_client, blink_client, pub_cmd, pub_body
     rospy.init_node('state_machine_simple')
     sm = smach.StateMachine(outcomes=['everything_checked'])
 
+    # detection client
+    detection_client = rospy.ServiceProxy('detection', Detection)
     # audio client
     audio_client = rospy.ServiceProxy('trauma_audio', Audio)
     # trauma client
@@ -312,7 +452,7 @@ def main():
     # motion client
     motion_client = rospy.ServiceProxy('movement', Movement)
     # pose client
-    pose_client = rospy.ServiceProxy('pose', Pose)
+    pose_client = rospy.ServiceProxy('human_pose', HumanPose)
     # blink client
     blink_client = rospy.ServiceProxy('blink', Blink)
     # cmd_vel publisher
