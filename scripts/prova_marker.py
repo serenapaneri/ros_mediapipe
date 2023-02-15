@@ -4,19 +4,13 @@ import rospy
 import time
 from visualization_msgs.msg import Marker, MarkerArray
 
-def main():
-
-    rospy.init_node('prova_marker')
-    sphere_marker_pub = rospy.Publisher('/sphere_marker', Marker, queue_size = 0)
-    text_marker_pub = rospy.Publisher('/text_marker', Marker, queue_size = 0)
-
-
+def sphere(x, y, z, i):
     ##### SPHERE #####
     sphere_marker = Marker()
     sphere_marker.header.frame_id = 'odom'
     sphere_marker.header.stamp = rospy.Time.now()
 
-    sphere_marker.id = 0
+    sphere_marker.id = i
     sphere_marker.type = 2 # sphere
     sphere_marker.action = Marker.ADD
 
@@ -32,15 +26,18 @@ def main():
     sphere_marker.color.a = 1.0
 
     # Set the pose of the marker
-    sphere_marker.pose.position.x = 0
-    sphere_marker.pose.position.y = 0
-    sphere_marker.pose.position.z = 1.0
+    sphere_marker.pose.position.x = x
+    sphere_marker.pose.position.y = y
+    sphere_marker.pose.position.z = z
     sphere_marker.pose.orientation.x = 0.0
     sphere_marker.pose.orientation.y = 0.0
     sphere_marker.pose.orientation.z = 0.0
     sphere_marker.pose.orientation.w = 1.0
 
+    return sphere_marker
 
+
+def text(x, y, z, n):
     ##### TEXT #####
     text_marker = Marker()
     text_marker.header.frame_id = 'odom'
@@ -60,15 +57,32 @@ def main():
     text_marker.color.a = 1.0
 
     # Set the pose of the marker
-    # marker.pose.position.x = 0
-    # marker.pose.position.y = 0
-    text_marker.pose.position.z = 1.5
-    # marker.pose.orientation.x = 0.0
-    # marker.pose.orientation.y = 0.0
-    # marker.pose.orientation.z = 0.0
+    text_marker.pose.position.x = x
+    text_marker.pose.position.y = y
+    text_marker.pose.position.z = z + 0.5
     text_marker.pose.orientation.w = 1.0
 
-    text_marker.text = 'ID0001'
+    text_marker.text = 'ID000' + str(n)
+
+    return text_marker
+    
+
+def main():
+
+    rospy.init_node('prova_marker')
+    sphere_marker_pub = rospy.Publisher('/sphere_marker', Marker, queue_size = 0)
+    text_marker_pub = rospy.Publisher('/text_marker', Marker, queue_size = 0)
+
+    x = 0.0
+    y = 0.0
+    z = 1.0
+    n = 1
+    i = 0
+
+    sphere_marker = sphere(x, y, z, i)
+    text_marker = text(x, y, z, n)    
+
+    #### IMPLEMENTARE MARKER ARRAY #####
 
     rate = rospy.Rate(1)
     while not rospy.is_shutdown():
