@@ -4,4 +4,3 @@ int32 question1
 int32 question2
 int32 question3a
 bool question3b
-bool ok

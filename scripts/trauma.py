@@ -5,13 +5,16 @@ import speech_recognition as sr
 import time
 import subprocess
 from gtts import gTTS
-from trauma.srv import Audio, AudioResponse
-from trauma.srv import Trauma, TraumaResponse
+from spot_mediapipe.srv import Audio, AudioResponse
+from spot_mediapipe.srv import Trauma, TraumaResponse
+from spot_mediapipe.srv import GoOn, GoOnResponse
 
 # audio service
 audio_srv = None
 # trauma service
 trauma_srv = None
+# go_on service
+go_srv = None
 
 start = False
 go_on = False
@@ -22,7 +25,7 @@ question_2 = 0
 question_3a = 0
 question_3b = False
 
-trauma_list = ['ache', 'aching', 'air', 'ambulance', 'ankle', 'arm', 'back', 'breath', 'breathe', 'broke', 'broken', 'bruising', 'burn', 'burning', 'cannnot', 'chest', 'cramping', 'discomfort', 'dizzy', 'doctor', 'dull', 'elbow', 'eyes', 'feel', 'finger', 'foot', 'hand', 'hands', 'head', 'headache', 'help', 'hip', 'hospital', 'hurt', 'hurts', 'injury', 'knee', 'laceration', 'leg', 'legs', 'lot', 'medical', 'move', 'neck', 'numbness', 'pain', 'painful', 'pinching', 'pressure', 'really', 'relief', 'see', 'sharp', 'shooting', 'shoulder', 'sick', 'sore', 'soreness', 'spot', 'stabbing', 'stiffness', 'stomach', 'stomachache', 'suffering', 'tender', 'throbbing', 'tightness', 'tingling', 'torment', 'torture', 'torturing', 'wrist', 'yes']
+trauma_list = ['ache', 'aching', 'air', 'ambulance', 'ankle', 'arm', 'back', 'breath', 'breathe', 'broke', 'broken', 'bruising', 'burn', 'burning', 'cannnot', 'chest', 'cramping', 'discomfort', 'dizzy', 'doctor', 'dull', 'elbow', 'eyes', 'finger', 'foot', 'hand', 'hands', 'head', 'headache', 'help', 'hip', 'hospital', 'hurt', 'hurts', 'injury', 'knee', 'laceration', 'leg', 'legs', 'lot', 'medical', 'move', 'neck', 'numbness', 'pain', 'painful', 'pinching', 'pressure', 'really', 'relief', 'see', 'sharp', 'shooting', 'shoulder', 'sick', 'sore', 'soreness', 'spot', 'stabbing', 'stiffness', 'stomach', 'stomachache', 'suffering', 'tender', 'throbbing', 'tightness', 'tingling', 'torment', 'torture', 'torturing', 'wrist', 'yes']
 
 ##
 # \brief Callback function of audio_srv
@@ -31,6 +34,7 @@ trauma_list = ['ache', 'aching', 'air', 'ambulance', 'ankle', 'arm', 'back', 'br
 #
 # This callback function allows the client to start and stop the behavior
 def audio(req):
+    global start
     if (req.audio == 'start'):
         start = True
     elif (req.audio == 'stop'):
@@ -45,14 +49,21 @@ def audio(req):
 #
 # This callback function that send information to the client relying on the 
 # answers of the user
-def questions(req):
-    global question_1, question_2, question_3, go_on
+def quest(req):
+    global question_1, question_2, question_3a, question_3b
     res = TraumaResponse()
     res.question1 = question_1
     res.question2 = question_2
     res.question3a = question_3a
     res.question3b = question_3b
-    res.ok = go_on
+    return res
+
+
+def go_handle(req):
+    global go_on
+    res = GoOnResponse()
+    res.goon = go_on
+    return res
 
 
 ##
@@ -99,11 +110,12 @@ def list_index(list1, list2):
 
 def main():
 
-    global audio_srv, trauma_srv, start, question_1, question_2, question_3a, question_3b, go_on
+    global audio_srv, trauma_srv, go_srv, start, question_1, question_2, question_3a, question_3b, go_on
     rospy.init_node('trauma')
 
     audio_srv = rospy.Service('trauma_audio', Audio, audio)
-    trauma_srv = rospy.Service('trauma_questions', Trauma, questions)
+    trauma_srv = rospy.Service('trauma_questions', Trauma, quest)
+    go_srv = rospy.Service('go', GoOn, go_handle)
 
     q1 = """ What is your name? """
     q2 = """ Do you know where you are? """
@@ -117,7 +129,7 @@ def main():
             # get audio from the microphone
             r = sr.Recognizer()
 
-            ## NAME    
+            ########### NAME ###########
             tts = gTTS(text = q1, lang = 'en', tld = 'us', slow = True)
             tts.save('q1.mp3')
             process1 = subprocess.Popen(["audacious", '--quit-after-play', 'q1.mp3'])
@@ -126,7 +138,7 @@ def main():
 
             with sr.Microphone() as source:
     
-                r.adjust_for_ambient_noise(source, duration = 0.5)
+                r.adjust_for_ambient_noise(source, duration = 0.1)
 
                 try:
                     audio1 = r.listen(source, timeout = 5)
@@ -144,8 +156,10 @@ def main():
                 except sr.RequestError as e:
                     print("Could not request results; {0}".format(e))
 
+                print('question 1: {}'.format(question_1))
 
-            ## WHERE
+
+            ########### WHERE ###########
             tts = gTTS(text = q2, lang = 'en', tld = 'us', slow = True)
             tts.save('q2.mp3')
             process2 = subprocess.Popen(["audacious", '--quit-after-play', 'q2.mp3'])
@@ -154,7 +168,7 @@ def main():
 
             with sr.Microphone() as source:
 
-                r.adjust_for_ambient_noise(source, duration = 0.5)
+                r.adjust_for_ambient_noise(source, duration = 0.1)
 
                 try:
                     audio2 = r.listen(source, timeout = 5)
@@ -172,8 +186,10 @@ def main():
                 except sr.RequestError as e:
                     print("Could not request results; {0}".format(e))
 
+                print('question 2: {}'.format(question_2))
 
-            ## TRAUMA
+
+            ########### TRAUMA ###########
             tts = gTTS(text = q3, lang = 'en', tld = 'us', slow = True)
             tts.save('q3.mp3')
             process3 = subprocess.Popen(["audacious", '--quit-after-play', 'q3.mp3'])
@@ -182,7 +198,7 @@ def main():
 
             with sr.Microphone() as source:
 
-                r.adjust_for_ambient_noise(source, duration = 0.5)
+                r.adjust_for_ambient_noise(source, duration = 0.1)
 
                 try:
                     audio3 = r.listen(source, timeout = 5)
@@ -206,7 +222,11 @@ def main():
                 except sr.RequestError as e:
                     print("Could not request results; {0}".format(e))
 
+                print('question 3a: {}'.format(question_3a))
+                print('question 3b: {}'.format(question_3b))
+
                 go_on = True
+                time.sleep(30)
                 rate.sleep()
 
         elif start == False:

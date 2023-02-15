@@ -8,9 +8,9 @@ from mediapipe_stream import *
 from spot_mediapipe.srv import Movement, MovementResponse
 from spot_mediapipe.srv import HumanPose, HumanPoseResponse
 from spot_mediapipe.srv import Blink, BlinkResponse
-# from spot_mediapipe.srv import Detection, DetectionResponse
+from spot_mediapipe.srv import Detection, DetectionResponse
 
-# detection_srv = None
+detection_srv = None
 motion_srv = None
 pose_srv = None
 blink_srv = None
@@ -53,12 +53,11 @@ blink_list = []
 
 v = 0.95
 
-# def human_detection(req):
-
-#     global detection
-#     res = DetectionResponse()
-#     res.detected = detection
-#     return res 
+def human_detection(req):
+    global detection
+    res = DetectionResponse()
+    res.detected = detection
+    return res 
 
 def motion_handle(req):
     global motion
@@ -67,9 +66,8 @@ def motion_handle(req):
     return res
 
 def pose_handle(req):
-
     global pose_detection
-    res = PoseResponse()
+    res = HumanPoseResponse()
     res.pose_ = pose_detection
     return res   
 
@@ -105,19 +103,19 @@ def calculate_distance(p1, p2):
 
 def main():
 
-    global motion_srv, pose_srv, blink_srv, motion, open_counter, close_counter, blink_counter, blink_list, blink, landmarks, v, motion_le, motion_ls, motion_lh, motion_lk, motion_re, motion_rs, motion_rh, motion_rk, pose_detection, vis_left_hip_angle, vis_right_hip_angle
+    global motion_srv, pose_srv, blink_srv, detection_srv, motion, open_counter, close_counter, blink_counter, blink_list, blink, landmarks, v, motion_le, motion_ls, motion_lh, motion_lk, motion_re, motion_rs, motion_rh, motion_rk, pose_detection, vis_left_hip_angle, vis_right_hip_angle, detection
 
     rospy.init_node("motion", anonymous = True)
     medpipe = mediapipe()
 
-    # detection_srv = rospy.Service('detection', Detection, human_detection)
+    detection_srv = rospy.Service('detection', Detection, human_detection)
     motion_srv = rospy.Service('movement', Movement, motion_handle)
     pose_srv = rospy.Service('human_pose', HumanPose, pose_handle)
     blink_srv = rospy.Service('blink', Blink, blink_handle)
 
     # rate = rospy.Rate(5)
-    rate = rospy.Rate(1)
-    # rate = rospy.Rate(10)
+    # rate = rospy.Rate(1)
+    rate = rospy.Rate(10)
     while True:
         if medpipe.results is not None and medpipe.results.pose_landmarks and medpipe.results.face_landmarks:
 
@@ -391,7 +389,7 @@ def main():
             left_ankle_pose = np.array((landmarks[27].x, landmarks[27].y))
             right_ankle_pose = np.array((landmarks[28].x, landmarks[28].y))
 
-            if vis_left_hip_angle or vis_right_hip_angle: 
+            if vis_left_hip_angle and vis_right_hip_angle: 
 
                 # in this case the person for sure is sitting down
                 if left_hip_angle <= 105 or right_hip_angle <= 105:

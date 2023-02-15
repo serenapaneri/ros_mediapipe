@@ -64,10 +64,14 @@ find_package (OpenCV REQUIRED)
  add_service_files(
    FILES
    Movement.srv
-   Pose.srv
+   HumanPose.srv
    Blink.srv
    Audio.srv
    Trauma.srv
+   Detection.srv
+   Docu.srv
+   Found.srv
+   GoOn.srv
  )
 
 ## Generate actions in the 'action' folder
@@ -175,7 +179,9 @@ include_directories(
    scripts/mediapipe_stream.py
    scripts/frames_config.py
    scripts/motion.py
-   scripts/state_machine_simple.py
+   scripts/trauma.py
+   scripts/file.py
+   scripts/state_machine.py
    DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
  )
 
