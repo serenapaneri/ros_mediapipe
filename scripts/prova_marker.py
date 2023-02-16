@@ -4,13 +4,14 @@ import rospy
 import time
 from visualization_msgs.msg import Marker, MarkerArray
 
-def sphere(x, y, z, i):
-    ##### SPHERE #####
+markers = []
+
+def sphere(x, y, z, id_):
     sphere_marker = Marker()
     sphere_marker.header.frame_id = 'odom'
     sphere_marker.header.stamp = rospy.Time.now()
 
-    sphere_marker.id = i
+    sphere_marker.id = id_
     sphere_marker.type = 2 # sphere
     sphere_marker.action = Marker.ADD
 
@@ -38,13 +39,12 @@ def sphere(x, y, z, i):
 
 
 def text(x, y, z, n):
-    ##### TEXT #####
     text_marker = Marker()
     text_marker.header.frame_id = 'odom'
     text_marker.header.stamp = rospy.Time.now()
 
-    text_marker.id = 1
-    text_marker.type = 9
+    text_marker.id = 100*n
+    text_marker.type = 9 # text
     text_marker.action = Marker.ADD
 
     # Set the scale of the marker
@@ -69,25 +69,29 @@ def text(x, y, z, n):
 
 def main():
 
+    global markers
     rospy.init_node('prova_marker')
-    sphere_marker_pub = rospy.Publisher('/sphere_marker', Marker, queue_size = 0)
-    text_marker_pub = rospy.Publisher('/text_marker', Marker, queue_size = 0)
+    marker_pub = rospy.Publisher('/people_marker', MarkerArray, queue_size = 0)
 
     x = 0.0
     y = 0.0
     z = 1.0
     n = 1
-    i = 0
 
-    sphere_marker = sphere(x, y, z, i)
-    text_marker = text(x, y, z, n)    
+    markers.append(sphere(x, y, z, n))
+    markers.append(text(x, y, z, n))
+    
+    # j = 1
+    # for i in range(3): 
+    #     j += 1
+    #     markers["sphere_marker" + str(j)] = sphere(j, y, z, j)
+    #     markers["text_marker" + str(j)] = text(j, y, z, j, j)
 
     #### IMPLEMENTARE MARKER ARRAY #####
 
     rate = rospy.Rate(1)
     while not rospy.is_shutdown():
-        sphere_marker_pub.publish(sphere_marker)
-        text_marker_pub.publish(text_marker)
+        marker_pub.publish(markers)
         rate.sleep()
 
 if __name__ == '__main__':
