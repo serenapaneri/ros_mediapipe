@@ -4,7 +4,8 @@ import rospy
 import time
 from visualization_msgs.msg import Marker, MarkerArray
 
-markers = []
+markers = {}
+markers_list = []
 
 def sphere(x, y, z, id_):
     sphere_marker = Marker()
@@ -69,7 +70,7 @@ def text(x, y, z, n):
 
 def main():
 
-    global markers
+    global markers, markers_list
     rospy.init_node('prova_marker')
     marker_pub = rospy.Publisher('/people_marker', MarkerArray, queue_size = 0)
 
@@ -78,20 +79,22 @@ def main():
     z = 1.0
     n = 1
 
-    markers.append(sphere(x, y, z, n))
-    markers.append(text(x, y, z, n))
+    # markers.append(sphere(x, y, z, n))
+    # markers.append(text(x, y, z, n))
     
-    # j = 1
-    # for i in range(3): 
-    #     j += 1
-    #     markers["sphere_marker" + str(j)] = sphere(j, y, z, j)
-    #     markers["text_marker" + str(j)] = text(j, y, z, j, j)
+    i = 0
+    for j in range(3):
+        i += 1
+        markers["sphere_marker" + str(i)] = sphere(i, y, z, i)
+        markers["text_marker" + str(i)] = text(i, y, z, i)
 
-    #### IMPLEMENTARE MARKER ARRAY #####
+
+    for values in markers.values():
+        markers_list.append(values)
 
     rate = rospy.Rate(1)
     while not rospy.is_shutdown():
-        marker_pub.publish(markers)
+        marker_pub.publish(markers_list)
         rate.sleep()
 
 if __name__ == '__main__':
