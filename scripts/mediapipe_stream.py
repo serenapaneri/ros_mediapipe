@@ -100,13 +100,10 @@ class mediapipe:
             ### converting pixels into x,y,z point cloud ###
             points3D = list(pc2.read_points(point_data, field_names=('x', 'y', 'z'), skip_nans=True, uvs = [(imgx, imgy)]))
             for p in points3D:
+                # these coordinates are w.r.t the kinect_rgb_optical_frame
                 self.x_coord.append(p[0])
                 self.y_coord.append(p[1])
                 self.z_coord.append(p[2])
-                # print(self.z_coord)
-                # print('x: {}, y: {}, z: {}'.format(p[0], p[1], p[2]))
-
-
 
 
 def main(args):

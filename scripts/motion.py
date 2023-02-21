@@ -9,11 +9,13 @@ from spot_mediapipe.srv import Movement, MovementResponse
 from spot_mediapipe.srv import HumanPose, HumanPoseResponse
 from spot_mediapipe.srv import Blink, BlinkResponse
 from spot_mediapipe.srv import Detection, DetectionResponse
+from spot_mediapipe.srv import XYZ, XYZResponse
 
 detection_srv = None
 motion_srv = None
 pose_srv = None
 blink_srv = None
+xyz_srv = None
 
 motion_left_elbow = []
 motion_left_shoulder = []
@@ -51,6 +53,10 @@ blink_counter = 0
 
 blink_list = []
 
+x_list = []
+y_list = []
+z_list = []
+
 v = 0.95
 
 def human_detection(req):
@@ -78,6 +84,14 @@ def blink_handle(req):
     res.blinking = blink
     return res
 
+def coord_handle(req):
+    global x_list, y_list, z_list
+    res = XYZResponse()
+    res.x = x_list
+    res.y = y_list
+    res.z = z_list
+    return res
+
 
 def calculate_angle(a, b, c):
 
@@ -103,7 +117,7 @@ def calculate_distance(p1, p2):
 
 def main():
 
-    global motion_srv, pose_srv, blink_srv, detection_srv, motion, open_counter, close_counter, blink_counter, blink_list, blink, landmarks, v, motion_le, motion_ls, motion_lh, motion_lk, motion_re, motion_rs, motion_rh, motion_rk, pose_detection, vis_left_hip_angle, vis_right_hip_angle, detection
+    global motion_srv, pose_srv, blink_srv, detection_srv, xyz_srv, motion, open_counter, close_counter, blink_counter, blink_list, blink, landmarks, v, motion_le, motion_ls, motion_lh, motion_lk, motion_re, motion_rs, motion_rh, motion_rk, pose_detection, vis_left_hip_angle, vis_right_hip_angle, detection, x_list, y_list, z_list
 
     rospy.init_node("motion", anonymous = True)
     medpipe = mediapipe()
@@ -112,12 +126,18 @@ def main():
     motion_srv = rospy.Service('movement', Movement, motion_handle)
     pose_srv = rospy.Service('human_pose', HumanPose, pose_handle)
     blink_srv = rospy.Service('blink', Blink, blink_handle)
+    xyz_srv = rospy.Service('coordinates', XYZ, coord_handle)
 
     # rate = rospy.Rate(5)
     # rate = rospy.Rate(1)
     rate = rospy.Rate(10)
     while True:
         if medpipe.results is not None and medpipe.results.pose_landmarks and medpipe.results.face_landmarks:
+
+            # coordinates of the found person w.r.t the kinect frame
+            x_list = medpipe.x_coord
+            y_list = medpipe.y_coord
+            z_list = medpipe.z_coord
 
             detection = True
             landmarks = medpipe.results.pose_landmarks.landmark

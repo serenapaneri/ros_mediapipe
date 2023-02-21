@@ -72,6 +72,7 @@ find_package (OpenCV REQUIRED)
    Docu.srv
    Found.srv
    GoOn.srv
+   XYZ.srv
  )
 
 ## Generate actions in the 'action' folder
@@ -182,6 +183,7 @@ include_directories(
    scripts/trauma.py
    scripts/file.py
    scripts/state_machine.py
+   scripts/rviz_markers.py
    DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
  )
 
