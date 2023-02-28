@@ -24,6 +24,8 @@ from spot_mediapipe.srv import Docu
 from spot_mediapipe.srv import Found, FoundResponse
 from spot_mediapipe.srv import GoOn
 from spot_mediapipe.srv import XYCoord
+from spot_msgs.msg import *
+
 
 # people service
 people_srv = None
@@ -119,16 +121,6 @@ def odom_callback(msg):
         msg.pose.pose.orientation.w)
     euler = transformations.euler_from_quaternion(quaternion)
     actual_yaw = euler[2]
-
-
-##
-# Function used to rotate the robot or make it stop rotating
-def rotate(ang):
-
-    twist_msg = Twist()
-    twist_msg.angular.z = ang
-    rospy.sleep(1)
-    return twist_msg 
     
 
 def pose_body(pitch):
@@ -275,7 +267,17 @@ class GoTo(smach.State):
         print(misalignment)
 
 
-        
+            # goal_msg = TrajectoryActionGoal()
+            # goal_msg.goal.target_pose.pose.position.x = 0.0
+            # goal_msg.goal.target_pose.pose.position.y = 0.0
+            # goal_msg.goal.target_pose.pose.position.z = 0.0
+            # goal_msg.goal.target_pose.pose.orientation.x = 0.0
+            # goal_msg.goal.target_pose.pose.orientation.y = 0.0
+            # goal_msg.goal.target_pose.pose.orientation.z = 0.0
+            # goal_msg.goal.target_pose.pose.orientation.w = 0.0
+            # goal_msg.goal.precise_positioning = False
+            # time.sleep(1)
+            # pub_goal.publish(goal_msg)
 
 
         # if the person is standing up
@@ -284,6 +286,18 @@ class GoTo(smach.State):
             goal_position_y = y_global_pos - distance_standup
             print(goal_position_x)
             print(goal_position_y)
+
+            # goal_msg = TrajectoryActionGoal()
+            # goal_msg.goal.target_pose.pose.position.x = goal_position_x
+            # goal_msg.goal.target_pose.pose.position.y = goal_position_y
+            # goal_msg.goal.target_pose.pose.position.z = 0.0
+            # goal_msg.goal.target_pose.pose.orientation.x = 0.0
+            # goal_msg.goal.target_pose.pose.orientation.y = 0.0
+            # goal_msg.goal.target_pose.pose.orientation.z = 0.0
+            # goal_msg.goal.target_pose.pose.orientation.w = 1.0
+            # goal_msg.goal.precise_positioning = False
+            # time.sleep(1)
+            # pub_goal.publish(goal_msg)
 
         #     while ((actual_position.x - goal_position_x)*(actual_position.x - goal_position_x) + (actual_position.y - goal_position_y)*(actual_position.y - goal_position_y)) > distance_standup:
         #         time.sleep(0.1)    
@@ -295,6 +309,19 @@ class GoTo(smach.State):
             goal_position_y = y_global_pos - distance_sitdown
             print(goal_position_x)
             print(goal_position_y)
+
+            # goal_msg = TrajectoryActionGoal()
+            # goal_msg.goal.target_pose.pose.position.x = goal_position_x
+            # goal_msg.goal.target_pose.pose.position.y = goal_position_y
+            # goal_msg.goal.target_pose.pose.position.z = 0.0
+            # goal_msg.goal.target_pose.pose.orientation.x = 0.0
+            # goal_msg.goal.target_pose.pose.orientation.y = 0.0
+            # goal_msg.goal.target_pose.pose.orientation.z = 0.0
+            # goal_msg.goal.target_pose.pose.orientation.w = 1.0
+            # goal_msg.goal.precise_positioning = False
+            # time.sleep(1)
+            # pub_goal.publish(goal_msg)
+
         #     while ((actual_position.x - goal_position_x)*(actual_position.x - goal_position_x) + (actual_position.y - goal_position_y)*(actual_position.y - goal_position_y)) > distance_sitdown:
         #         time.sleep(0.1) 
 
@@ -304,6 +331,19 @@ class GoTo(smach.State):
             goal_position_y = y_global_pos - distance_laydown
             print(goal_position_x)
             print(goal_position_y)
+
+            # goal_msg = TrajectoryActionGoal()
+            # goal_msg.goal.target_pose.pose.position.x = goal_position_x
+            # goal_msg.goal.target_pose.pose.position.y = goal_position_y
+            # goal_msg.goal.target_pose.pose.position.z = 0.0
+            # goal_msg.goal.target_pose.pose.orientation.x = 0.0
+            # goal_msg.goal.target_pose.pose.orientation.y = 0.0
+            # goal_msg.goal.target_pose.pose.orientation.z = 0.0
+            # goal_msg.goal.target_pose.pose.orientation.w = 1.0
+            # goal_msg.goal.precise_positioning = False
+            # time.sleep(1)
+            # pub_goal.publish(goal_msg)
+
         #     while ((actual_position.x - goal_position_x)*(actual_position.x - goal_position_x) + (actual_position.y - goal_position_y)*(actual_position.y - goal_position_y)) > distance_laydown:
         #         time.sleep(0.1) 
         
