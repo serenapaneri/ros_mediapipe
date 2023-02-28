@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<launch>
+
+    <node name="motion" pkg="spot_mediapipe" type="motion.py">
+    <node name="trauma" pkg="spot_mediapipe" type="trauma.py">
+    <node name="file" pkg="spot_mediapipe" type="file.py">
+
+</launch>

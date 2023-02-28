@@ -9,6 +9,7 @@ import sys
 import time
 import smach
 import smach_ros
+import numpy as np
 from geometry_msgs.msg import Twist
 from geometry_msgs.msg import Pose
 from geometry_msgs.msg import Point
@@ -22,6 +23,7 @@ from spot_mediapipe.srv import HumanPose
 from spot_mediapipe.srv import Docu
 from spot_mediapipe.srv import Found, FoundResponse
 from spot_mediapipe.srv import GoOn
+from spot_mediapipe.srv import XYCoord
 
 # people service
 people_srv = None
@@ -41,8 +43,10 @@ detection_client = None
 docu_client = None
 # go_on client
 goon_client = None
+# xy real nose coordinates
+xy_nose_client = None
 # velocity publisher
-pub_cmd = None
+pub_goal = None
 # body pose publisher
 pub_body = None
 
@@ -83,9 +87,13 @@ distance_standup = 1.8 # meters
 distance_sitdown = 1.2 # meters
 distance_laydown = 1.2 # meters
 
-# point where the person is
+# point where to position the robot
 goal_position_x = 0
 goal_position_y = 0
+
+xy_global_pos = []
+ext_point_xy = []
+actual_pos = []
 
 start_time = 0
 
@@ -113,79 +121,39 @@ def odom_callback(msg):
     actual_yaw = euler[2]
 
 
-
 ##
-# Function to go on a straight line for a certain distance
-def go_forward(distance):
-
-    global pub_cmd, lin_vel
-    twist_msg = Twist()
-    twist_msg.linear.x = lin_vel
-    twist_msg.angular.z = 0
-
-    start_time = rospy.Time.now().to_sec()
-    current_distance = 0
-
-    while (current_distance < distance):
-        pub_cmd.publish(twist_msg)
-        time = rospy.Time.now().to_sec()
-        current_distance = lin_vel*(time - start_time)
-
-    twist_msg.linear.x = 0
-    pub_cmd.publish(twist_msg)
-    print('The robot is moving forward')
-
-
-##
-# Function to make the robot rotate counterclockwise
-### CREDO SIA IN GRADI
-def yaw(angle):
-
-    global pub_cmd, ang_vel
-    relative_angle = angle*(2*math.pi)/360
+# Function used to rotate the robot or make it stop rotating
+def rotate(ang):
 
     twist_msg = Twist()
-    twist_msg.linear.x = 0
-    twist_msg.angular.z = ang_vel
+    twist_msg.angular.z = ang
+    rospy.sleep(1)
+    return twist_msg 
+    
 
-    start_time = rospy.Time.now().to_sec()
-    current_angle = 0
+def pose_body(pitch):
 
-    while (current_angle < relative_angle):
-        pub_cmd.publish(twist_msg)
-        time = rospy.Time.now().to_sec()
-        current_angle = ang_vel*(time - start_time)
-    twist_msg.angular.z = 0
-    pub_cmd.publish(twist_msg)
-    print('The robot is rotating')
-
-
-def pose_body(pose):
-
-    global pub_body
-    pose_msg = Pose()
-    pose_msg.position.x = 0.0
-    pose_msg.position.y = 0.0
-    pose_msg.position.z = 0.0
-    pose_msg.orientation.x = 0.0  
-    pose_msg.orientation.y = pose
-    pose_msg.orientation.z = 0.0
+    pose_msg = Pose() 
+    pose_msg.orientation.y = pitch
     pose_msg.orientation.w = 1.0
+    rospy.sleep(1)
+    return pose_msg
 
-    pub_body.publish(pose_msg)
-    print('The robot is looking up')
 
+def calculate_angle(a, b, c):
 
-##
-# Function used to stop the robot's behavior
-def stop():
-
-    global pub_cmd
-    twist_msg = Twist()
-    twist_msg.linear.x = 0
-    twist_msg.angular.z = 0
-    pub_cmd.publish(twist_msg)
-    print('The robot is stopping')
+    a = np.array(a) # first joint
+    b = np.array(b) # mid joint
+    c = np.array(c) # end joint
+    
+    # calculate the radians between 3 joints and then convert it in angles
+    radians = np.arctan2(c[1]-b[1], c[0]-b[0]) - np.arctan2(a[1]-b[1], a[0]-b[0])
+    angle = np.abs(radians*180.0/np.pi)
+    
+    # the angle should be beween 0 and 180
+    if angle > 180.0:
+        angle = 360 - angle
+    return angle
 
 
 
@@ -202,7 +170,7 @@ class Motion(smach.State):
         
     def execute(self, userdata):
      
-       global detection_client, pub_cmd, landmarks, detected, found_people
+       global detection_client, pub_goal, landmarks, detected, found_people, start_time
 
        # retrieving, if there are any the mediapipe markers
        res_detection = detection_client()
@@ -211,18 +179,20 @@ class Motion(smach.State):
        # if a person is detected
        if detected:
            print('A person has been detected')
+           # turn = rotate(0.0)
+           # pub_goal.publish(turn)
            found_people += 1
-           start_time = time.time()  
+           start_time = rospy.Time.from_sec(time.time())
            return 'compute_pose'
 
        # if there is nobody
        else:
            # here wuold go the exploration part, it is simplify as
            ### DOES NOT WORK BUT THE IDEA IS THAT ONE
-           # go_forward(3)
-           # stop()
-           # yaw(45)
-           # stop()
+           
+           # print(actual_yaw)
+           # turn = rotate(0.5)
+           # pub_goal.publish(turn)
            time.sleep(1)
            
            return 'motion'
@@ -270,25 +240,76 @@ class GoTo(smach.State):
         
     def execute(self, userdata):
 
-        global pose, distance_standup, distance_sitdown, distance_laydown, actual_position, goal_position_x, goal_position_y
+        global xy_nose_client, pose, distance_standup, distance_sitdown, distance_laydown, actual_position, actual_yaw, goal_position_x, goal_position_y, xy_global_pos, ext_point_xy, actual_pos, pub_goal
        
+
+        ##### GUARDA X E Y RISPETTO A ODOM CHE CREDO SIANO TUTTI DVERSI #######
+
+        time.sleep(5)
+
         # implement move base
+        # nose coordinates with respect to the odom frame
+        res_nose_xy = xy_nose_client()
+        y_nose_pos = res_nose_xy.x_nose
+        x_nose_pos = - res_nose_xy.y_nose
+
+        # computing the person position in global coordinates
+        x_global_pos = x_nose_pos + actual_position.x
+        y_global_pos = y_nose_pos + actual_position.y
+        xy_global_pos.append(x_global_pos)
+        xy_global_pos.append(y_global_pos)
+
+        ext_point_x = actual_position.x
+        ext_point_y = actual_position.y + 1.0
+        ext_point_xy.append(ext_point_x)
+        ext_point_xy.append(ext_point_y)
+
+        actual_pos.append(actual_position.x)
+        actual_pos.append(actual_position.y)
+
+        print(ext_point_xy)
+        print(actual_pos) 
+        print(xy_global_pos)
+
+        misalignment = calculate_angle(ext_point_xy, actual_pos, xy_global_pos)
+        print(misalignment)
+
+
+        
+
 
         # if the person is standing up
-        # if pose == 1:
+        if pose == 1:
+            goal_position_x = x_global_pos
+            goal_position_y = y_global_pos - distance_standup
+            print(goal_position_x)
+            print(goal_position_y)
+
         #     while ((actual_position.x - goal_position_x)*(actual_position.x - goal_position_x) + (actual_position.y - goal_position_y)*(actual_position.y - goal_position_y)) > distance_standup:
         #         time.sleep(0.1)    
 
+
         # if the person is sitting down
-        # elif pose == 2:
+        elif pose == 2:
+            goal_position_x = x_global_pos
+            goal_position_y = y_global_pos - distance_sitdown
+            print(goal_position_x)
+            print(goal_position_y)
         #     while ((actual_position.x - goal_position_x)*(actual_position.x - goal_position_x) + (actual_position.y - goal_position_y)*(actual_position.y - goal_position_y)) > distance_sitdown:
         #         time.sleep(0.1) 
 
         # if the person is laying down
-        # elif pose == 3:
+        elif pose == 3:
+            goal_position_x = x_global_pos
+            goal_position_y = y_global_pos - distance_laydown
+            print(goal_position_x)
+            print(goal_position_y)
         #     while ((actual_position.x - goal_position_x)*(actual_position.x - goal_position_x) + (actual_position.y - goal_position_y)*(actual_position.y - goal_position_y)) > distance_laydown:
         #         time.sleep(0.1) 
+        
 
+        else:
+           print('NO MOTION') 
         time.sleep(5)
     
         return 'adjust'
@@ -305,20 +326,25 @@ class Adjust(smach.State):
         
     def execute(self, userdata):
     
-        global look_up, look_down1, look_down2
+        global look_up, look_down1, look_down2, default, pub_body
 
         ## THE ROBOT HERE SHOULD MOVE IN ORDER TO ADJUST ITSELF AROUND THE PERSON
 
-        # if pose == 1:
-        #     pose_body(look_up)   
-        # elif pose == 2:
-        #     pose_body(look_down1)     
-        # elif pose == 3:
-        #     pose_body(look_down2)
-
+        if pose == 1:
+            robot_pose = pose_body(look_up)
+            pub_body.publish(robot_pose)   
+        elif pose == 2:
+            robot_pose = pose_body(look_down1)
+            pub_body.publish(robot_pose)     
+        elif pose == 3:
+            robot_pose = pose_body(look_down2)
+            pub_body.publish(robot_pose)
+        else:
+            robot_pose = pose_body(default)
+            pub_body.publish(robot_pose)
         # probabilmente bisongna mettere uno sleep aspettando che il robot si sitemi
         print('Adjusting the pose')
-        time.sleep(5)
+        # time.sleep(5)
                  
         return 'evaluation'
 
@@ -437,18 +463,21 @@ class Analysis(smach.State):
 
         docu_client('stopping')
 
-        stop_time = time.time()
+        stop_time = rospy.Time.from_sec(time.time())
         time_needed = stop_time - start_time
+        required_time = time_needed.to_sec()
         print('Rescue time: {}'.format(time_needed))
+  
 
-        # pose_body(default)   
+        robot_pose = pose_body(default)
+        pub_body.publish(robot_pose)
 
         return 'everything_checked' 
         
 
 def main():
 
-    global people_srv, audio_client, trauma_client, motion_client, pose_client, detection_client, blink_client, docu_client, goon_client, pub_cmd, pub_body
+    global people_srv, audio_client, trauma_client, motion_client, pose_client, detection_client, blink_client, docu_client, goon_client, xy_nose_client, pub_goal, pub_body
     rospy.init_node('state_machine')
     sm = smach.StateMachine(outcomes=['everything_checked'])
 
@@ -456,35 +485,31 @@ def main():
     people_srv = rospy.Service('foundpeople', Found, people_found)
     # detection client
     rospy.wait_for_service('detection')
-    print('Wait for detection service')
     detection_client = rospy.ServiceProxy('detection', Detection)
+    rospy.wait_for_service('xy_coord')
+    print('Wait for xy_nose service')
+    xy_nose_client = rospy.ServiceProxy('xy_coord', XYCoord)
     # audio client
     rospy.wait_for_service('trauma_audio')
-    print('Wait for trauma_audio service')
     audio_client = rospy.ServiceProxy('trauma_audio', Audio)
     # trauma client
-    print('Wait for trauma_question service')
     trauma_client = rospy.ServiceProxy('trauma_questions', Trauma)
     # motion client
     rospy.wait_for_service('movement')
-    print('Wait for movement service')
     motion_client = rospy.ServiceProxy('movement', Movement)
     # pose client
     rospy.wait_for_service('human_pose')
-    print('Wait for human_pose service')
     pose_client = rospy.ServiceProxy('human_pose', HumanPose)
     # blink client
     rospy.wait_for_service('blink')
-    print('Wait for blink service')
     blink_client = rospy.ServiceProxy('blink', Blink)
     # document client
     rospy.wait_for_service('docum')
-    print('Wait for docum service')
     docu_client = rospy.ServiceProxy('docum', Docu)
     # go_on client
     goon_client = rospy.ServiceProxy('go', GoOn)
     # cmd_vel publisher
-    pub_cmd = rospy.Publisher('/spot/cmd_vel', Twist, queue_size = 1)
+    pub_goal = rospy.Publisher('/goaltospot', TrajectoryActionGoal, queue_size = 1) #????
     # body_pose publisher
     pub_body = rospy.Publisher('/spot/body_pose', Pose, queue_size = 1)
 

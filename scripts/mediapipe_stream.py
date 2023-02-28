@@ -104,6 +104,10 @@ class mediapipe:
                 self.x_coord.append(p[0])
                 self.y_coord.append(p[1])
                 self.z_coord.append(p[2])
+        else:
+            self.x_coord.clear()
+            self.y_coord.clear()
+            self.z_coord.clear()
 
 
 def main(args):

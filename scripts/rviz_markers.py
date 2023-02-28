@@ -5,7 +5,10 @@ import time
 from visualization_msgs.msg import Marker, MarkerArray
 from spot_mediapipe.srv import Found
 from spot_mediapipe.srv import XYZ
+from spot_mediapipe.srv import XYCoord, XYCoordResponse
 
+# nose in real coordinates
+xy_nose_service = None
 # numbers of found individuals
 found_client = None
 # coordinates of the found individual
@@ -16,9 +19,30 @@ markers_list = []
 
 n = 0
 
+x_ = 0
+y_ = 0
+
+def coord_handle(req):
+    global x_, y_
+    res = XYCoordResponse()
+    res.x_nose = x_
+    res.y_nose = y_
+    return res
+
+##
+# function to find within a list the first value under a certain threshold and return it
+def first_below_threshold(list_, thresh):
+    for value in list_:
+        if value < thresh:
+            return value
+    return None
+
+##
+# function to display on rviz a sphere that has coordinates specified in the parameters
 def sphere(x, y, z, id_):
     sphere_marker = Marker()
-    sphere_marker.header.frame_id = 'odom'
+    # text_marker.header.frame_id = 'odom'
+    sphere_marker.header.frame_id = 'kinect_rgb_optical_frame'
     sphere_marker.header.stamp = rospy.Time.now()
 
     sphere_marker.id = id_
@@ -48,12 +72,15 @@ def sphere(x, y, z, id_):
     return sphere_marker
 
 
+##
+# function to display on rviz a text that has coordinates specified in the parameters
 def text(x, y, z, n):
     text_marker = Marker()
-    text_marker.header.frame_id = 'odom'
+    # text_marker.header.frame_id = 'odom'
+    text_marker.header.frame_id = 'kinect_rgb_optical_frame'
     text_marker.header.stamp = rospy.Time.now()
 
-    text_marker.id = 100*n
+    text_marker.id = 100 + n
     text_marker.type = 9 # text
     text_marker.action = Marker.ADD
 
@@ -79,26 +106,31 @@ def text(x, y, z, n):
 
 def main():
 
-    global found_client, xyz_client, markers, markers_list, n
+    global xy_nose_service, found_client, xyz_client, markers, markers_list, n, x_, y_
     rospy.init_node('prova_marker')
 
+    # client that counts the number of people
     # rospy.wait_for_service('foundpeople')
     # found_client = rospy.ServiceProxy('foundpeople', Found)
+    xy_nose_service = rospy.Service('xy_coord', XYCoord, coord_handle)
+    # client that recieves the position of the individual w.r.t. the camera
     rospy.wait_for_service('coordinates')
     xyz_client = rospy.ServiceProxy('coordinates', XYZ)
+    # to publish the position and ID of the individuals
     marker_pub = rospy.Publisher('/people_marker', MarkerArray, queue_size = 0)
 
-    # w.r.t rviz this is constant and independent from the kinect 
+    # w.r.t rviz this is constant and irrelevant from the kinect 
     z_ = 1.0
 
     # people counter
     k = 0
 
-    # n = 1
+    n = 1
 
     rate = rospy.Rate(10)
     while not rospy.is_shutdown():
 
+        time.sleep(1)
         # client to retrieve people coordinates
         res_xyz = xyz_client()
         x_coord = res_xyz.x
@@ -106,21 +138,17 @@ def main():
         z_coord = res_xyz.z
 
         # client that retrieves IDs
-        res_found = found_client()
-        n = res_found.peoplefound
+        # res_found = found_client()
+        # n = res_found.peoplefound
 
-        if len(x_coord) > 1 and len(z_coord) > 1:
+        # taking the first coordinates that is not affected by an error
+        if len(x_coord) > 5 and len(z_coord) > 5:
+
             # here should go the x coordinates (?)
-            if x_coord[0] < 3.0:
-                y_ = x_coord[0]
-            else:
-                y_ = x_coord[1]
+            y_ = first_below_threshold(x_coord, 3.5)
 
             # here should go the z coordinates (?)
-            if z_coord[0] < 3.5:
-                x_ = z_coord[0]
-            else:
-                x_ = z_coord[1]
+            x_ = first_below_threshold(z_coord, 3.5)
 
             print('x: {}'.format(x_))
             print('y: {}'.format(y_))
@@ -130,11 +158,10 @@ def main():
                 rate.sleep()
             else:
                 k = n
-                markers["sphere_marker" + str(k)] = sphere(x_, y_, z_, k)
-                markers["text_marker" + str(k)] = text(x_, y_, z_, k)
+                markers["sphere_marker" + str(k)] = sphere(x_, - y_, z_, k)
+                markers["text_marker" + str(k)] = text(x_, - y_, z_, k)
                 for values in markers.values():
                     markers_list.append(values)
-                    # print(markers_list)
                 marker_pub.publish(markers_list)
                 rate.sleep()
 

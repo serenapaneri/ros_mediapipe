@@ -17,6 +17,9 @@ find_package(catkin REQUIRED COMPONENTS
   visualization_msgs
   geometry_msgs
   message_filters
+  nav_msgs
+  actionlib
+  actionlib_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -73,6 +76,7 @@ find_package (OpenCV REQUIRED)
    Found.srv
    GoOn.srv
    XYZ.srv
+   XYCoord.srv
  )
 
 ## Generate actions in the 'action' folder
@@ -85,7 +89,10 @@ find_package (OpenCV REQUIRED)
 ## Generate added messages and services with any dependencies listed here
  generate_messages(
    DEPENDENCIES
-#   sensor_msgs#   std_msgs
+#   sensor_msgs   
+    std_msgs
+    actionlib_msgs
+    actionlib
  )
 
 ################################################
@@ -184,6 +191,7 @@ include_directories(
    scripts/file.py
    scripts/state_machine.py
    scripts/rviz_markers.py
+   scripts/prova_move.py
    DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
  )
 

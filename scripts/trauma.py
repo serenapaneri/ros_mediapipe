@@ -138,7 +138,7 @@ def main():
 
             with sr.Microphone() as source:
     
-                r.adjust_for_ambient_noise(source, duration = 0.1)
+                r.adjust_for_ambient_noise(source, duration = 0.5)
 
                 try:
                     audio1 = r.listen(source, timeout = 5)
@@ -168,7 +168,7 @@ def main():
 
             with sr.Microphone() as source:
 
-                r.adjust_for_ambient_noise(source, duration = 0.1)
+                r.adjust_for_ambient_noise(source, duration = 0.5)
 
                 try:
                     audio2 = r.listen(source, timeout = 5)
@@ -198,7 +198,7 @@ def main():
 
             with sr.Microphone() as source:
 
-                r.adjust_for_ambient_noise(source, duration = 0.1)
+                r.adjust_for_ambient_noise(source, duration = 0.5)
 
                 try:
                     audio3 = r.listen(source, timeout = 5)

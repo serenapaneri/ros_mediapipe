@@ -45,6 +45,8 @@ vis_right_hip_angle = False
 motion = False
 blink = False
 
+total_motions = []
+
 pose_detection = 0
 
 open_counter = 0
@@ -115,9 +117,11 @@ def calculate_distance(p1, p2):
     return distance
 
 
+
+
 def main():
 
-    global motion_srv, pose_srv, blink_srv, detection_srv, xyz_srv, motion, open_counter, close_counter, blink_counter, blink_list, blink, landmarks, v, motion_le, motion_ls, motion_lh, motion_lk, motion_re, motion_rs, motion_rh, motion_rk, pose_detection, vis_left_hip_angle, vis_right_hip_angle, detection, x_list, y_list, z_list
+    global motion_srv, pose_srv, blink_srv, detection_srv, xyz_srv, motion, open_counter, close_counter, blink_counter, blink_list, blink, landmarks, v, motion_le, motion_ls, motion_lh, motion_lk, motion_re, motion_rs, motion_rh, motion_rk, pose_detection, vis_left_hip_angle, vis_right_hip_angle, detection, x_list, y_list, z_list, total_motions
 
     rospy.init_node("motion", anonymous = True)
     medpipe = mediapipe()
@@ -132,7 +136,7 @@ def main():
     # rate = rospy.Rate(1)
     rate = rospy.Rate(10)
     while True:
-        if medpipe.results is not None and medpipe.results.pose_landmarks and medpipe.results.face_landmarks:
+        if medpipe.results is not None and medpipe.results.pose_landmarks: 
 
             # coordinates of the found person w.r.t the kinect frame
             x_list = medpipe.x_coord
@@ -141,7 +145,7 @@ def main():
 
             detection = True
             landmarks = medpipe.results.pose_landmarks.landmark
-            f_landmarks = medpipe.results.face_landmarks.landmark
+            # f_landmarks = medpipe.results.face_landmarks.landmark
 
             #################### MOTION DETECTION ####################
 
@@ -339,65 +343,23 @@ def main():
                     rate.sleep()
 
             if motion_le or motion_ls or motion_lh or motion_lk or motion_re or motion_rs or motion_rh or motion_rk:
-                motion = True
-                print('The person is moving')
+                mot = True
+                # print('The person is moving')
             else:
-                motion = False
-                print('The person is not moving')        
+                mot = False
+                # print('The person is not moving')
 
-
-
-            #################### BLINKING DETECTION ####################
-
-            # left eye
-            left_eye_up = np.array((f_landmarks[386].x, f_landmarks[386].y))
-            left_eye_down = np.array((f_landmarks[373].x, f_landmarks[373].y))
-            left_eye_left = np.array((f_landmarks[263].x, f_landmarks[263].y))
-            left_eye_right = np.array((f_landmarks[362].x, f_landmarks[362].y))
-
-            # right eye
-            right_eye_up = np.array((f_landmarks[159].x, f_landmarks[159].y))
-            right_eye_down = np.array((f_landmarks[145].x, f_landmarks[145].y))
-            right_eye_left = np.array((f_landmarks[133].x, f_landmarks[133].y))
-            right_eye_right = np.array((f_landmarks[33].x, f_landmarks[33].y))
-
-
-            left_vert = calculate_distance(left_eye_up, left_eye_down)
-            left_hor = calculate_distance(left_eye_left, left_eye_right)
-            right_vert = calculate_distance(right_eye_up, right_eye_down)
-            right_hor = calculate_distance(right_eye_left, right_eye_right)
-
-            lratio = int((left_hor/left_vert)*100)
-            rratio = int((right_hor/right_vert)*100)
-
-            ratio = (lratio + rratio)/2
-
-            if ratio < 160 and blink_counter <= 2:
-                open_counter += 1
-                print('The eyes are open')
-                blink = False
+            total_motions.append(mot)
+            
+            if len(total_motions) < 10:
                 rate.sleep()
-            elif ratio < 160 and blink_counter > 2:
-                rate.sleep()
-            elif ratio > 160 and open_counter <= 2:
-                close_counter += 1
-                print('The eyes are closed')
-                blink = False
-                rate.sleep()
-            elif ratio > 160 and open_counter > 2:
-                blink_counter += 1
-                blink_list.append(blink_counter)
-                if len(blink_list) < 2:
-                    rate.sleep()
-                elif blink_list[-2] == blink_list[-1]:
-                    rate.sleep()
-                elif blink_list[-2] != blink_list[-1]:
-                    blink = True
-                    print(blink_list[-1])
-                    rate.sleep()
-
-
-
+            else:
+                if True in total_motions[-10:]:
+                    print('The person is moving')
+                    motion = True
+                else:
+                    print('The person is not moving')
+                    motion = False
 
             #################### POSE DETECTION ####################
 
@@ -466,7 +428,67 @@ def main():
             elif pose_detection == 2:
                 print('The person is sitting down')
             elif pose_detection == 3:
-                print('The person is laying down')        
+                print('The person is laying down') 
+
+
+
+
+
+            if medpipe.results.face_landmarks:
+                f_landmarks = medpipe.results.face_landmarks.landmark
+
+                #################### BLINKING DETECTION ####################
+
+                # left eye
+                left_eye_up = np.array((f_landmarks[386].x, f_landmarks[386].y))
+                left_eye_down = np.array((f_landmarks[373].x, f_landmarks[373].y))
+                left_eye_left = np.array((f_landmarks[263].x, f_landmarks[263].y))
+                left_eye_right = np.array((f_landmarks[362].x, f_landmarks[362].y))
+
+                # right eye
+                right_eye_up = np.array((f_landmarks[159].x, f_landmarks[159].y))
+                right_eye_down = np.array((f_landmarks[145].x, f_landmarks[145].y))
+                right_eye_left = np.array((f_landmarks[133].x, f_landmarks[133].y))
+                right_eye_right = np.array((f_landmarks[33].x, f_landmarks[33].y))
+
+
+                left_vert = calculate_distance(left_eye_up, left_eye_down)
+                left_hor = calculate_distance(left_eye_left, left_eye_right)
+                right_vert = calculate_distance(right_eye_up, right_eye_down)
+                right_hor = calculate_distance(right_eye_left, right_eye_right)
+
+                lratio = int((left_hor/left_vert)*100)
+                rratio = int((right_hor/right_vert)*100)
+
+                ratio = (lratio + rratio)/2
+
+                if ratio < 160 and blink_counter <= 2:
+                    open_counter += 1
+                    print('The eyes are open')
+                    blink = False
+                    rate.sleep()
+                elif ratio < 160 and blink_counter > 2:
+                    rate.sleep()
+                elif ratio > 160 and open_counter <= 2:
+                    close_counter += 1
+                    print('The eyes are closed')
+                    blink = False
+                    rate.sleep()
+                elif ratio > 160 and open_counter > 2:
+                    blink_counter += 1
+                    blink_list.append(blink_counter)
+                    if len(blink_list) < 2:
+                        rate.sleep()
+                    elif blink_list[-2] == blink_list[-1]:
+                        rate.sleep()
+                    elif blink_list[-2] != blink_list[-1]:
+                        blink = True
+                        print(blink_list[-1])
+                        rate.sleep()
+
+            else:
+                print('No face detection')
+                rate.sleep()
 
 
         # if there is not someone detected
