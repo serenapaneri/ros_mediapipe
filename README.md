@@ -17,8 +17,9 @@ rosrun tf static_transform_publisher 0.22 -0.009 0.075 1.57 0 1.57 body kinect_r
 
 To start the analysis part:
 ```
-rosrun spot_mediapipe motion.py
-rosrun spot_mediapipe trauma.py
-rosrun spot_mediapipe file.py
+roslaunch spot_mediapipe analysis.launch 
+```
+```
+rosrun spot_mediapipe rviz_markers.py
 rosrun spot_mediapipe state_machine.py
 ```
