@@ -25,6 +25,7 @@ question_2 = 0
 question_3a = 0
 question_3b = False
 
+# list containing some of the trauma keywords 
 trauma_list = ['ache', 'aching', 'air', 'ambulance', 'ankle', 'arm', 'back', 'breath', 'breathe', 'broke', 'broken', 'bruising', 'burn', 'burning', 'cannnot', 'chest', 'cramping', 'discomfort', 'dizzy', 'doctor', 'dull', 'elbow', 'eyes', 'finger', 'foot', 'hand', 'hands', 'head', 'headache', 'help', 'hip', 'hospital', 'hurt', 'hurts', 'injury', 'knee', 'laceration', 'leg', 'legs', 'lot', 'medical', 'move', 'neck', 'numbness', 'pain', 'painful', 'pinching', 'pressure', 'really', 'relief', 'see', 'sharp', 'shooting', 'shoulder', 'sick', 'sore', 'soreness', 'spot', 'stabbing', 'stiffness', 'stomach', 'stomachache', 'suffering', 'tender', 'throbbing', 'tightness', 'tingling', 'torment', 'torture', 'torturing', 'wrist', 'yes']
 
 ##
@@ -45,7 +46,7 @@ def audio(req):
 ##
 # \brief Callback function of trauma_srv
 # \param req, TraumaRequest
-# \return None
+# \return TraumaResponse
 #
 # This callback function that send information to the client relying on the 
 # answers of the user
@@ -59,6 +60,13 @@ def quest(req):
     return res
 
 
+##
+# \brief Callback function of goon_srv
+# \param req, GoOnRequest
+# \return GoOnResponse
+#
+# This callback function that advertise the client when the assessment has  
+# finished
 def go_handle(req):
     global go_on
     res = GoOnResponse()

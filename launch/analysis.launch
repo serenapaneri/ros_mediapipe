@@ -1,8 +1,9 @@
 <?xml version="1.0"?>
 <launch>
-
-    <node name="motion" pkg="spot_mediapipe" type="motion.py">
-    <node name="trauma" pkg="spot_mediapipe" type="trauma.py">
-    <node name="file" pkg="spot_mediapipe" type="file.py">
-
+	
+   <node name="motion" pkg="spot_mediapipe" type ="motion.py"/>
+   <node name="trauma" pkg="spot_mediapipe" type ="trauma.py"/>
+   <node name="file" pkg="spot_mediapipe" type ="file.py"/>
+   <!-- <node name="rviz_markers" pkg="spot_mediapipe" type ="rviz_markers.py"/> -->
+   
 </launch>

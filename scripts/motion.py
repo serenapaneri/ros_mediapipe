@@ -10,12 +10,14 @@ from spot_mediapipe.srv import HumanPose, HumanPoseResponse
 from spot_mediapipe.srv import Blink, BlinkResponse
 from spot_mediapipe.srv import Detection, DetectionResponse
 from spot_mediapipe.srv import XYZ, XYZResponse
+from spot_mediapipe.srv import MotionAnalysis
 
 detection_srv = None
 motion_srv = None
 pose_srv = None
 blink_srv = None
 xyz_srv = None
+analysis_client = None
 
 motion_left_elbow = []
 motion_left_shoulder = []
@@ -121,7 +123,7 @@ def calculate_distance(p1, p2):
 
 def main():
 
-    global motion_srv, pose_srv, blink_srv, detection_srv, xyz_srv, motion, open_counter, close_counter, blink_counter, blink_list, blink, landmarks, v, motion_le, motion_ls, motion_lh, motion_lk, motion_re, motion_rs, motion_rh, motion_rk, pose_detection, vis_left_hip_angle, vis_right_hip_angle, detection, x_list, y_list, z_list, total_motions
+    global motion_srv, pose_srv, blink_srv, detection_srv, xyz_srv, analysis_client, motion, open_counter, close_counter, blink_counter, blink_list, blink, landmarks, v, motion_le, motion_ls, motion_lh, motion_lk, motion_re, motion_rs, motion_rh, motion_rk, pose_detection, vis_left_hip_angle, vis_right_hip_angle, detection, x_list, y_list, z_list, total_motions
 
     rospy.init_node("motion", anonymous = True)
     medpipe = mediapipe()
@@ -131,6 +133,8 @@ def main():
     pose_srv = rospy.Service('human_pose', HumanPose, pose_handle)
     blink_srv = rospy.Service('blink', Blink, blink_handle)
     xyz_srv = rospy.Service('coordinates', XYZ, coord_handle)
+    rospy.wait_for_service('startanalysis')
+    analysis_client = rospy.ServiceProxy('startanalysis', MotionAnalysis)
 
     # rate = rospy.Rate(5)
     # rate = rospy.Rate(1)
@@ -349,12 +353,20 @@ def main():
                 mot = False
                 # print('The person is not moving')
 
-            total_motions.append(mot)
+
+            res_analysis = analysis_client()
+            analysis_starting = res_analysis.start_analysis
+
+            if analysis_starting == True:
+                total_motions.append(mot)
+                print(total_motions)
+            else:
+                total_motions.clear()
             
-            if len(total_motions) < 10:
+            if len(total_motions) < 1:
                 rate.sleep()
             else:
-                if True in total_motions[-10:]:
+                if True in total_motions:
                     print('The person is moving')
                     motion = True
                 else:
@@ -401,15 +413,17 @@ def main():
                 elif left_hip_angle > 162 or right_hip_angle > 162:
                     # if the left ankle is the more visible of the two
                     if left_ankle_v > v and left_ankle_v > right_ankle_v:
+                        d_ankles = calculate_distance(right_ankle_pose, left_ankle_pose)
                         d_nose_left_ankle = calculate_distance(nose_pose, left_ankle_pose)
-                        if d_nose_left_ankle >= 0.6:
+                        if d_nose_left_ankle >= 0.6 and d_ankles < 0.1:
                             pose_detection = 1
                         else:
                             pose_detection = 3
                     # if the right ankle is the more visible of the two
                     elif right_ankle_v > v and right_ankle_v > left_ankle_v:
+                        d_ankles = calculate_distance(right_ankle_pose, left_ankle_pose)
                         d_nose_right_ankle = calculate_distance(nose_pose, right_ankle_pose)
-                        if d_nose_right_ankle >= 0.6:
+                        if d_nose_right_ankle >= 0.6 and d_ankles < 0.1:
                             pose_detection = 1
                         else:
                             pose_detection = 3
@@ -462,29 +476,32 @@ def main():
 
                 ratio = (lratio + rratio)/2
 
-                if ratio < 160 and blink_counter <= 2:
-                    open_counter += 1
-                    print('The eyes are open')
-                    blink = False
-                    rate.sleep()
-                elif ratio < 160 and blink_counter > 2:
-                    rate.sleep()
-                elif ratio > 160 and open_counter <= 2:
-                    close_counter += 1
-                    print('The eyes are closed')
-                    blink = False
-                    rate.sleep()
-                elif ratio > 160 and open_counter > 2:
-                    blink_counter += 1
-                    blink_list.append(blink_counter)
-                    if len(blink_list) < 2:
+                if analysis_starting == True:
+                    if ratio < 160 and blink_counter <= 2:
+                        open_counter += 1
+                        print('The eyes are open')
+                        blink = False
                         rate.sleep()
-                    elif blink_list[-2] == blink_list[-1]:
+                    elif ratio < 160 and blink_counter > 2:
                         rate.sleep()
-                    elif blink_list[-2] != blink_list[-1]:
-                        blink = True
-                        print(blink_list[-1])
+                    elif ratio > 160 and open_counter <= 2:
+                        close_counter += 1
+                        print('The eyes are closed')
+                        blink = False
                         rate.sleep()
+                    elif ratio > 160 and open_counter > 2:
+                        blink_counter += 1
+                        blink_list.append(blink_counter)
+                        if len(blink_list) < 2:
+                            rate.sleep()
+                        elif blink_list[-2] == blink_list[-1]:
+                            rate.sleep()
+                        elif blink_list[-2] != blink_list[-1]:
+                            blink = True
+                            print(blink_list[-1])
+                            rate.sleep()
+                else:
+                    blink_list.clear()
 
             else:
                 print('No face detection')

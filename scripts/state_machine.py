@@ -1,8 +1,5 @@
 #!/usr/bin/env python
 
-# This script is simplified since the exploration part is not done with the rrt navigation but it
-# is only done with a Twist and Odometry message. And the assuntion here is single person in a room.
-
 import rospy
 import random
 import sys
@@ -10,6 +7,9 @@ import time
 import smach
 import smach_ros
 import numpy as np
+import math
+import actionlib
+import actionlib.msg
 from geometry_msgs.msg import Twist
 from geometry_msgs.msg import Pose
 from geometry_msgs.msg import Point
@@ -24,11 +24,15 @@ from spot_mediapipe.srv import Docu
 from spot_mediapipe.srv import Found, FoundResponse
 from spot_mediapipe.srv import GoOn
 from spot_mediapipe.srv import XYCoord
+from spot_mediapipe.srv import GlobalCoord, GlobalCoordResponse
+from spot_mediapipe.srv import MotionAnalysis, MotionAnalysisResponse
 from spot_msgs.msg import *
 
 
 # people service
 people_srv = None
+# analysis service
+analysis_srv = None
 # audio client to start the trauma behavior
 audio_client = None 
 # trauma client to recieve the answers
@@ -47,10 +51,14 @@ docu_client = None
 goon_client = None
 # xy real nose coordinates
 xy_nose_client = None
-# velocity publisher
-pub_goal = None
+# global variable service
+global_srv = None
+# action client
+client = None
 # body pose publisher
 pub_body = None
+# cmd_vel publisher
+pub_cmd = None
 
 # robot state variables
 actual_position = Point()
@@ -92,6 +100,10 @@ distance_laydown = 1.2 # meters
 # point where to position the robot
 goal_position_x = 0
 goal_position_y = 0
+theta_goal = 0
+
+x_global_pos = 0.0
+y_global_pos = 0.0
 
 xy_global_pos = []
 ext_point_xy = []
@@ -99,11 +111,32 @@ actual_pos = []
 
 start_time = 0
 
+starting_analysis = False
+
+
+
 def people_found(req):
     global found_people
     res = FoundResponse()
     res.peoplefound = found_people
     return res
+
+
+def global_handle(req):
+    global x_global_pos, y_global_pos
+    res = GlobalCoordResponse()
+    res.x_global = x_global_pos
+    res.y_global = y_global_pos
+    return res
+
+
+def analysis_handle(req):
+    global starting_analysis
+    res = MotionAnalysisResponse()
+    res.start_analysis = starting_analysis
+    return res
+
+
 
 ##
 # This is the callback function of the subscriber to the topic odom and it is used to know the actual position
@@ -121,6 +154,16 @@ def odom_callback(msg):
         msg.pose.pose.orientation.w)
     euler = transformations.euler_from_quaternion(quaternion)
     actual_yaw = euler[2]
+
+
+##
+# Function used to rotate the robot or make it stop rotating
+def rotate(ang):
+
+    twist_msg = Twist()
+    twist_msg.angular.z = ang
+    rospy.sleep(1)
+    return twist_msg 
     
 
 def pose_body(pitch):
@@ -162,17 +205,22 @@ class Motion(smach.State):
         
     def execute(self, userdata):
      
-       global detection_client, pub_goal, landmarks, detected, found_people, start_time
+       global detection_client, pub_goal, landmarks, detected, found_people, start_time, pub_cmd
 
        # retrieving, if there are any the mediapipe markers
        res_detection = detection_client()
        detected = res_detection.detected
 
+       twist_msg = Twist()
+
        # if a person is detected
        if detected:
            print('A person has been detected')
-           # turn = rotate(0.0)
-           # pub_goal.publish(turn)
+           twist_msg.angular.z = 0.0
+           rospy.loginfo('stop command')
+           time.sleep(1)
+           pub_cmd.publish(twist_msg)
+
            found_people += 1
            start_time = rospy.Time.from_sec(time.time())
            return 'compute_pose'
@@ -180,12 +228,11 @@ class Motion(smach.State):
        # if there is nobody
        else:
            # here wuold go the exploration part, it is simplify as
-           ### DOES NOT WORK BUT THE IDEA IS THAT ONE
            
-           # print(actual_yaw)
-           # turn = rotate(0.5)
-           # pub_goal.publish(turn)
+           twist_msg.angular.z = 0.2
+           rospy.loginfo('start command')
            time.sleep(1)
+           pub_cmd.publish(twist_msg)
            
            return 'motion'
 
@@ -202,7 +249,7 @@ class ComputePose(smach.State):
 
         global pose_client, pose
 
-        time.sleep(3)
+        time.sleep(5)
         res_pose = pose_client()
         pose = res_pose.pose_
 
@@ -232,7 +279,7 @@ class GoTo(smach.State):
         
     def execute(self, userdata):
 
-        global xy_nose_client, pose, distance_standup, distance_sitdown, distance_laydown, actual_position, actual_yaw, goal_position_x, goal_position_y, xy_global_pos, ext_point_xy, actual_pos, pub_goal
+        global xy_nose_client, pose, distance_standup, distance_sitdown, distance_laydown, actual_position, actual_yaw, goal_position_x, goal_position_y, xy_global_pos, ext_point_xy, actual_pos, client, x_global_pos, y_global_pos, theta_goal
        
 
         ##### GUARDA X E Y RISPETTO A ODOM CHE CREDO SIANO TUTTI DVERSI #######
@@ -243,114 +290,86 @@ class GoTo(smach.State):
         # nose coordinates with respect to the odom frame
         res_nose_xy = xy_nose_client()
         y_nose_pos = res_nose_xy.x_nose
-        x_nose_pos = - res_nose_xy.y_nose
+        x_nose_pos = res_nose_xy.y_nose
 
         # computing the person position in global coordinates
-        x_global_pos = x_nose_pos + actual_position.x
+        x_global_pos = - x_nose_pos + actual_position.x
         y_global_pos = y_nose_pos + actual_position.y
         xy_global_pos.append(x_global_pos)
         xy_global_pos.append(y_global_pos)
 
         ext_point_x = actual_position.x
-        ext_point_y = actual_position.y + 1.0
+        ext_point_y = actual_position.y + 2.0
         ext_point_xy.append(ext_point_x)
         ext_point_xy.append(ext_point_y)
 
         actual_pos.append(actual_position.x)
         actual_pos.append(actual_position.y)
 
-        print(ext_point_xy)
-        print(actual_pos) 
-        print(xy_global_pos)
+        # print(ext_point_xy)
+        # print(actual_pos) 
+        # print(xy_global_pos)
+        # print(x_nose_pos)
+        # print(y_nose_pos)
 
         misalignment = calculate_angle(ext_point_xy, actual_pos, xy_global_pos)
         print(misalignment)
 
+        if x_nose_pos < 0:
+            # il robot dovr' girare di misalignment in senso antiorario
+            theta_goal = math.radians(misalignment)
+        elif x_nose_pos > 0:
+            # il robot dovr girare di misalignement in senso orario 
+            theta_goal = - math.radians(misalignment)
 
-            # goal_msg = TrajectoryActionGoal()
-            # goal_msg.goal.target_pose.pose.position.x = 0.0
-            # goal_msg.goal.target_pose.pose.position.y = 0.0
-            # goal_msg.goal.target_pose.pose.position.z = 0.0
-            # goal_msg.goal.target_pose.pose.orientation.x = 0.0
-            # goal_msg.goal.target_pose.pose.orientation.y = 0.0
-            # goal_msg.goal.target_pose.pose.orientation.z = 0.0
-            # goal_msg.goal.target_pose.pose.orientation.w = 0.0
-            # goal_msg.goal.precise_positioning = False
-            # time.sleep(1)
-            # pub_goal.publish(goal_msg)
 
+        print(theta_goal)
 
         # if the person is standing up
         if pose == 1:
-            goal_position_x = x_global_pos
-            goal_position_y = y_global_pos - distance_standup
+            goal_position_x = y_nose_pos - distance_standup
+            goal_position_y = - x_nose_pos
             print(goal_position_x)
             print(goal_position_y)
-
-            # goal_msg = TrajectoryActionGoal()
-            # goal_msg.goal.target_pose.pose.position.x = goal_position_x
-            # goal_msg.goal.target_pose.pose.position.y = goal_position_y
-            # goal_msg.goal.target_pose.pose.position.z = 0.0
-            # goal_msg.goal.target_pose.pose.orientation.x = 0.0
-            # goal_msg.goal.target_pose.pose.orientation.y = 0.0
-            # goal_msg.goal.target_pose.pose.orientation.z = 0.0
-            # goal_msg.goal.target_pose.pose.orientation.w = 1.0
-            # goal_msg.goal.precise_positioning = False
-            # time.sleep(1)
-            # pub_goal.publish(goal_msg)
-
-        #     while ((actual_position.x - goal_position_x)*(actual_position.x - goal_position_x) + (actual_position.y - goal_position_y)*(actual_position.y - goal_position_y)) > distance_standup:
-        #         time.sleep(0.1)    
 
 
         # if the person is sitting down
         elif pose == 2:
-            goal_position_x = x_global_pos
-            goal_position_y = y_global_pos - distance_sitdown
+            goal_position_x = y_nose_pos - distance_sitdown
+            goal_position_y = - x_nose_pos
             print(goal_position_x)
             print(goal_position_y)
 
-            # goal_msg = TrajectoryActionGoal()
-            # goal_msg.goal.target_pose.pose.position.x = goal_position_x
-            # goal_msg.goal.target_pose.pose.position.y = goal_position_y
-            # goal_msg.goal.target_pose.pose.position.z = 0.0
-            # goal_msg.goal.target_pose.pose.orientation.x = 0.0
-            # goal_msg.goal.target_pose.pose.orientation.y = 0.0
-            # goal_msg.goal.target_pose.pose.orientation.z = 0.0
-            # goal_msg.goal.target_pose.pose.orientation.w = 1.0
-            # goal_msg.goal.precise_positioning = False
-            # time.sleep(1)
-            # pub_goal.publish(goal_msg)
 
-        #     while ((actual_position.x - goal_position_x)*(actual_position.x - goal_position_x) + (actual_position.y - goal_position_y)*(actual_position.y - goal_position_y)) > distance_sitdown:
-        #         time.sleep(0.1) 
 
         # if the person is laying down
         elif pose == 3:
-            goal_position_x = x_global_pos
-            goal_position_y = y_global_pos - distance_laydown
+            goal_position_x = y_nose_pos - distance_laydown
+            goal_position_y = - x_nose_pos
             print(goal_position_x)
             print(goal_position_y)
 
-            # goal_msg = TrajectoryActionGoal()
-            # goal_msg.goal.target_pose.pose.position.x = goal_position_x
-            # goal_msg.goal.target_pose.pose.position.y = goal_position_y
-            # goal_msg.goal.target_pose.pose.position.z = 0.0
-            # goal_msg.goal.target_pose.pose.orientation.x = 0.0
-            # goal_msg.goal.target_pose.pose.orientation.y = 0.0
-            # goal_msg.goal.target_pose.pose.orientation.z = 0.0
-            # goal_msg.goal.target_pose.pose.orientation.w = 1.0
-            # goal_msg.goal.precise_positioning = False
-            # time.sleep(1)
-            # pub_goal.publish(goal_msg)
-
-        #     while ((actual_position.x - goal_position_x)*(actual_position.x - goal_position_x) + (actual_position.y - goal_position_y)*(actual_position.y - goal_position_y)) > distance_laydown:
-        #         time.sleep(0.1) 
-        
 
         else:
-           print('NO MOTION') 
-        time.sleep(5)
+            goal_position_x = y_nose_pos - distance_laydown
+            goal_position_y = - x_nose_pos
+            print(goal_position_x)
+            print(goal_position_y)
+
+
+        goal = spot_msgs.msg.TrajectoryGoal()
+        goal.target_pose.header.frame_id = 'body'
+        goal.target_pose.pose.position.x = goal_position_x
+        goal.target_pose.pose.position.y = goal_position_y
+        # goal.target_pose.pose.orientation.x = 0.0
+        # goal.target_pose.pose.orientation.y = 0.0
+        goal.target_pose.pose.orientation.z = theta_goal
+        goal.target_pose.pose.orientation.w = 1.0
+        goal.duration.data.secs = 5
+        rospy.loginfo("dopo dichiarazione target")
+        time.sleep(1)
+        client.send_goal(goal)
+        client.wait_for_result()
     
         return 'adjust'
 
@@ -368,8 +387,6 @@ class Adjust(smach.State):
     
         global look_up, look_down1, look_down2, default, pub_body
 
-        ## THE ROBOT HERE SHOULD MOVE IN ORDER TO ADJUST ITSELF AROUND THE PERSON
-
         if pose == 1:
             robot_pose = pose_body(look_up)
             pub_body.publish(robot_pose)   
@@ -380,11 +397,11 @@ class Adjust(smach.State):
             robot_pose = pose_body(look_down2)
             pub_body.publish(robot_pose)
         else:
-            robot_pose = pose_body(default)
+            robot_pose = pose_body(look_down2)
             pub_body.publish(robot_pose)
-        # probabilmente bisongna mettere uno sleep aspettando che il robot si sitemi
+
         print('Adjusting the pose')
-        # time.sleep(5)
+        time.sleep(1)
                  
         return 'evaluation'
 
@@ -398,9 +415,10 @@ class Evaluation(smach.State):
         
     def execute(self, userdata):
     
-        global audio_client
+        global audio_client, starting_analysis
 
         print('Starting the evaluation part')
+        starting_analysis = True
         audio_client('start')                
         return 'waiting'
 
@@ -436,7 +454,7 @@ class Analysis(smach.State):
         
     def execute(self, userdata):
 
-        global audio_client, trauma_client, motion_client, blink_client, docu_client, pose, stop, start_time, default
+        global audio_client, trauma_client, motion_client, blink_client, docu_client, pose, stop, start_time, default, starting_analysis
 
         # trauma
         res_trauma = trauma_client()
@@ -501,12 +519,16 @@ class Analysis(smach.State):
         audio_client('stop')
         print('Stop audio part')
 
+        starting_analysis = False
+
         docu_client('stopping')
+
+        # time.perf_counter()
 
         stop_time = rospy.Time.from_sec(time.time())
         time_needed = stop_time - start_time
         required_time = time_needed.to_sec()
-        print('Rescue time: {}'.format(time_needed))
+        print('Rescue time: {}'.format(required_time))
   
 
         robot_pose = pose_body(default)
@@ -517,12 +539,16 @@ class Analysis(smach.State):
 
 def main():
 
-    global people_srv, audio_client, trauma_client, motion_client, pose_client, detection_client, blink_client, docu_client, goon_client, xy_nose_client, pub_goal, pub_body
+    global people_srv, global_srv, analysis_srv, audio_client, trauma_client, motion_client, pose_client, detection_client, blink_client, docu_client, goon_client, xy_nose_client, client, pub_body, pub_cmd
     rospy.init_node('state_machine')
     sm = smach.StateMachine(outcomes=['everything_checked'])
 
     # people service
     people_srv = rospy.Service('foundpeople', Found, people_found)
+    # global coordinates service 
+    global_srv = rospy.Service('globalcoord', GlobalCoord, global_handle)
+    # start analysis
+    analysis_srv = rospy.Service('startanalysis', MotionAnalysis, analysis_handle)
     # detection client
     rospy.wait_for_service('detection')
     detection_client = rospy.ServiceProxy('detection', Detection)
@@ -548,12 +574,13 @@ def main():
     docu_client = rospy.ServiceProxy('docum', Docu)
     # go_on client
     goon_client = rospy.ServiceProxy('go', GoOn)
-    # cmd_vel publisher
-    pub_goal = rospy.Publisher('/goaltospot', TrajectoryActionGoal, queue_size = 1) #????
+    # action client
+    client = actionlib.SimpleActionClient('/spot/trajectory', spot_msgs.msg.TrajectoryAction)
     # body_pose publisher
     pub_body = rospy.Publisher('/spot/body_pose', Pose, queue_size = 1)
+    # cmd vel publisher
+    pub_cmd = rospy.Publisher('/spot/cmd_vel', Twist, queue_size = 1)
 
-    # CLIENT FOR MOVEBASE
 
 
     with sm:

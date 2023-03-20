@@ -8,6 +8,7 @@ import cv_bridge
 import time
 import os
 import sys
+import matplotlib as mpl
 import sensor_msgs.point_cloud2 as pc2
 
 # needed to use cv_bridge with python 3
@@ -85,6 +86,7 @@ class mediapipe:
             cv2.waitKey(3)
 
 
+
     def cloud_callback(self, point_data):
         
         assert isinstance(point_data, PointCloud2)
@@ -113,6 +115,7 @@ class mediapipe:
 def main(args):
     rospy.init_node("mediapipe_stream", anonymous = True)
     med = mediapipe()
+
     rospy.spin()
 
 if __name__ == '__main__':

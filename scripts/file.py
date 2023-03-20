@@ -165,8 +165,12 @@ def main():
             cell_t4[0].text = 'Trauma'
             if q3b == True:
                 cell_t4[1].text = 'True'
-            elif q3b == False:
+            elif q3b == False and q3a == 1:
                 cell_t4[1].text = 'False'
+            elif q3b == False and q3a == 2:
+                cell_t4[1].text = 'True'
+            elif q3b == False and q3a == 3:
+                cell_t4[1].text = 'True'
 
 
             doc.add_page_break()

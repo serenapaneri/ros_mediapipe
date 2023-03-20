@@ -5,12 +5,15 @@ import time
 from visualization_msgs.msg import Marker, MarkerArray
 from spot_mediapipe.srv import Found
 from spot_mediapipe.srv import XYZ
+from spot_mediapipe.srv import GlobalCoord
 from spot_mediapipe.srv import XYCoord, XYCoordResponse
 
 # nose in real coordinates
 xy_nose_service = None
 # numbers of found individuals
 found_client = None
+# global cordinates client
+global_client = None
 # coordinates of the found individual
 xyz_client = None
 
@@ -31,9 +34,9 @@ def coord_handle(req):
 
 ##
 # function to find within a list the first value under a certain threshold and return it
-def first_below_threshold(list_, thresh):
+def first_threshold(list_, thresh1, thresh2):
     for value in list_:
-        if value < thresh:
+        if thresh1 < value and value < thresh2:
             return value
     return None
 
@@ -41,8 +44,8 @@ def first_below_threshold(list_, thresh):
 # function to display on rviz a sphere that has coordinates specified in the parameters
 def sphere(x, y, z, id_):
     sphere_marker = Marker()
-    # text_marker.header.frame_id = 'odom'
-    sphere_marker.header.frame_id = 'kinect_rgb_optical_frame'
+    sphere_marker.header.frame_id = 'odom'
+    # sphere_marker.header.frame_id = 'kinect_rgb_optical_frame'
     sphere_marker.header.stamp = rospy.Time.now()
 
     sphere_marker.id = id_
@@ -76,8 +79,8 @@ def sphere(x, y, z, id_):
 # function to display on rviz a text that has coordinates specified in the parameters
 def text(x, y, z, n):
     text_marker = Marker()
-    # text_marker.header.frame_id = 'odom'
-    text_marker.header.frame_id = 'kinect_rgb_optical_frame'
+    text_marker.header.frame_id = 'odom'
+    # text_marker.header.frame_id = 'kinect_rgb_optical_frame'
     text_marker.header.stamp = rospy.Time.now()
 
     text_marker.id = 100 + n
@@ -106,7 +109,7 @@ def text(x, y, z, n):
 
 def main():
 
-    global xy_nose_service, found_client, xyz_client, markers, markers_list, n, x_, y_
+    global xy_nose_service, global_client, found_client, xyz_client, markers, markers_list, n, x_, y_
     rospy.init_node('prova_marker')
 
     # client that counts the number of people
@@ -116,6 +119,9 @@ def main():
     # client that recieves the position of the individual w.r.t. the camera
     rospy.wait_for_service('coordinates')
     xyz_client = rospy.ServiceProxy('coordinates', XYZ)
+    # global coordinates client
+    rospy.wait_for_service('globalcoord')
+    global_client = rospy.ServiceProxy('globalcoord', GlobalCoord)
     # to publish the position and ID of the individuals
     marker_pub = rospy.Publisher('/people_marker', MarkerArray, queue_size = 0)
 
@@ -145,10 +151,10 @@ def main():
         if len(x_coord) > 5 and len(z_coord) > 5:
 
             # here should go the x coordinates (?)
-            y_ = first_below_threshold(x_coord, 3.5)
+            y_ = first_threshold(x_coord, 1.0, 3.5)
 
             # here should go the z coordinates (?)
-            x_ = first_below_threshold(z_coord, 3.5)
+            x_ = first_threshold(z_coord, 1.0, 3.5)
 
             print('x: {}'.format(x_))
             print('y: {}'.format(y_))
@@ -157,9 +163,13 @@ def main():
                 marker_pub.publish(markers_list)
                 rate.sleep()
             else:
-                k = n
-                markers["sphere_marker" + str(k)] = sphere(x_, - y_, z_, k)
-                markers["text_marker" + str(k)] = text(x_, - y_, z_, k)
+                time.sleep(3)
+                res_global = global_client()
+                x_global = res_global.x_global
+                y_global = res_global.y_global
+                k += 1
+                markers["sphere_marker" + str(k)] = sphere(x_global, y_global, z_, k)
+                markers["text_marker" + str(k)] = text(x_global, y_global, z_, k)
                 for values in markers.values():
                     markers_list.append(values)
                 marker_pub.publish(markers_list)
